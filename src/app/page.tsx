@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import {
   Wrench,
   Sparkles,
@@ -10,6 +11,8 @@ import {
   Monitor,
   Cpu,
   UserCheck,
+  ShieldCheck,
+  User,
 } from "lucide-react";
 import { buttonStyles } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -17,19 +20,19 @@ import { Badge } from "@/components/ui/Badge";
 
 export default function Home() {
   return (
-    <div className="space-y-24 py-12 md:py-20">
-      {/* 1. HERO SECTION */}
+    <div className="space-y-20 py-10 md:py-16">
+      {/* 1. HERO SECTION & ROLE SELECTION */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
         {/* Category Pill */}
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#E5E5EA] shadow-xs">
           <span className="w-2 h-2 rounded-full bg-[#0071E3]" />
-          <span className="text-xs font-medium text-[#656565]">
+          <span className="text-xs font-semibold text-[#656565]">
             Academic Laboratory Equipment Intelligence
           </span>
         </div>
 
         {/* Main Headline */}
-        <h1 className="text-4xl sm:text-5xl md:text-6xl font-semibold tracking-tight text-[#1D1D1F] max-w-4xl mx-auto leading-[1.12]">
+        <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-[#1D1D1F] max-w-4xl mx-auto leading-[1.12]">
           Smart Laboratory Fault Reporting and Equipment Intelligence.
         </h1>
 
@@ -38,21 +41,121 @@ export default function Home() {
           A centralized platform where users report equipment faults, AI provides advisory triage suggestions, and administrators manage repairs.
         </p>
 
-        {/* Hero CTAs (Direct styled anchors, no button nesting) */}
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          <a
-            href="#overview"
-            className={buttonStyles({ variant: "primary", size: "lg" })}
-          >
-            Explore Platform
-            <ArrowRight className="w-4 h-4 ml-1" />
-          </a>
-          <a
-            href="#sample-report"
-            className={buttonStyles({ variant: "secondary", size: "lg" })}
-          >
-            View Sample Report
-          </a>
+        {/* PROMINENT ROLE SELECTION SECTION — DEMO ACCESS WITHOUT AUTHENTICATION */}
+        <div className="pt-4 max-w-4xl mx-auto text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* User Demo Card */}
+            <div className="bg-white rounded-3xl border border-[#E5E5EA] p-7 sm:p-8 shadow-xs hover:border-[#0071E3]/50 hover:shadow-md transition-all flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-[#EBF5FF] text-[#0071E3] flex items-center justify-center shadow-xs">
+                    <User className="w-6 h-6" />
+                  </div>
+                  <Badge variant="info" size="sm">
+                    Student Demo
+                  </Badge>
+                </div>
+
+                <div className="space-y-1.5">
+                  <h2 className="text-xl font-bold text-[#1D1D1F]">
+                    User Demo
+                  </h2>
+                  <p className="text-sm text-[#656565] leading-relaxed">
+                    Explore the student and faculty fault reporting portal. Submit simulated tickets, inspect AI advisory triage recommendations, and track ticket repair status.
+                  </p>
+                </div>
+
+                <ul className="space-y-2 text-xs text-[#656565] pt-1 border-t border-[#E5E5EA]/70">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#248A3D] shrink-0" />
+                    <span>Interactive fault submission with AI triage suggestions</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#248A3D] shrink-0" />
+                    <span>Personal ticket history (Reported to Resolved)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#248A3D] shrink-0" />
+                    <span>Instant access &bull; No sign-in or registration required</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link
+                href="/demo"
+                className={buttonStyles({
+                  variant: "primary",
+                  size: "lg",
+                  className: "w-full justify-center min-h-[48px]",
+                })}
+              >
+                Launch User Demo
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </div>
+
+            {/* Admin Demo Card */}
+            <div className="bg-white rounded-3xl border border-[#E5E5EA] p-7 sm:p-8 shadow-xs hover:border-[#16A34A]/50 hover:shadow-md transition-all flex flex-col justify-between space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center shadow-xs border border-[#BBF7D0]">
+                    <ShieldCheck className="w-6 h-6 text-[#15803D]" />
+                  </div>
+                  <Badge variant="success" size="sm">
+                    Admin Demo
+                  </Badge>
+                </div>
+
+                <div className="space-y-1.5">
+                  <h2 className="text-xl font-bold text-[#1D1D1F]">
+                    Admin Demo
+                  </h2>
+                  <p className="text-sm text-[#656565] leading-relaxed">
+                    Explore the administrative operations command center. Browse campus laboratory tickets, triage equipment, assign technicians, and override category & priority.
+                  </p>
+                </div>
+
+                <ul className="space-y-2 text-xs text-[#656565] pt-1 border-t border-[#E5E5EA]/70">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#248A3D] shrink-0" />
+                    <span>Administrative metrics (Pending, In Progress, Critical)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#248A3D] shrink-0" />
+                    <span>Omni-search, status filters, and dynamic lab selection</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#248A3D] shrink-0" />
+                    <span>Live triage modal &bull; Technician assignment & category override</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link
+                href="/demo/admin"
+                className={buttonStyles({
+                  variant: "secondary",
+                  size: "lg",
+                  className: "w-full justify-center min-h-[48px]",
+                })}
+              >
+                Launch Admin Demo
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Institutional User Sign-In Footnote */}
+          <div className="mt-6 text-center text-xs text-[#86868B]">
+            University staff or student with existing campus credentials?{" "}
+            <Link href="/login" className="text-[#0071E3] font-medium hover:underline">
+              Sign In
+            </Link>{" "}
+            or{" "}
+            <Link href="/register" className="text-[#0071E3] font-medium hover:underline">
+              Register Institutional Account
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -211,7 +314,7 @@ export default function Home() {
               AI-Assisted Triage Suggestions
             </h3>
             <p className="text-sm text-[#656565] leading-relaxed">
-              Gemini AI analyzes fault descriptions to provide advisory categories, priority suggestions, possible causes, and action hints.
+              Groq AI analyzes fault descriptions to provide advisory categories, priority suggestions, possible causes, and action hints.
             </p>
           </Card>
 
@@ -251,7 +354,7 @@ export default function Home() {
             {
               step: "02",
               title: "AI Analysis",
-              desc: "Gemini evaluates the report and proposes category, priority, and troubleshooting suggestions.",
+              desc: "Groq AI evaluates the report and proposes category, priority, and troubleshooting suggestions.",
               icon: Sparkles,
             },
             {

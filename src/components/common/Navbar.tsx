@@ -2,13 +2,15 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ShieldAlert, LogOut, LayoutDashboard, PlusCircle } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { Menu, X, ShieldAlert, LogOut, LayoutDashboard, PlusCircle, User, ShieldCheck } from "lucide-react";
 import { buttonStyles } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/context/AuthContext";
 import { RolePreviewSelector } from "@/components/auth/RolePreviewSelector";
 
 export function Navbar() {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, userProfile, actualRole, activeRoleView, setActiveRoleView, logout } = useAuth();
 
@@ -102,16 +104,30 @@ export function Navbar() {
             ) : (
               <>
                 <Link
+                  href="/demo"
+                  className={buttonStyles({
+                    variant: pathname === "/demo" ? "primary" : "outline",
+                    size: "sm",
+                  })}
+                >
+                  <User className="w-3.5 h-3.5 mr-1 text-[#0071E3]" />
+                  User Demo
+                </Link>
+                <Link
+                  href="/demo/admin"
+                  className={buttonStyles({
+                    variant: pathname === "/demo/admin" ? "primary" : "outline",
+                    size: "sm",
+                  })}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 mr-1 text-[#16A34A]" />
+                  Admin Demo
+                </Link>
+                <Link
                   href="/login"
                   className={buttonStyles({ variant: "ghost", size: "sm" })}
                 >
                   Sign In
-                </Link>
-                <Link
-                  href="/register"
-                  className={buttonStyles({ variant: "primary", size: "sm" })}
-                >
-                  Get Started
                 </Link>
               </>
             )}
@@ -224,12 +240,36 @@ export function Navbar() {
             ) : (
               <>
                 <Link
+                  href="/demo"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={buttonStyles({
+                    variant: pathname === "/demo" ? "primary" : "outline",
+                    size: "md",
+                    className: "w-full justify-center",
+                  })}
+                >
+                  <User className="w-4 h-4 mr-2 text-[#0071E3]" />
+                  User Demo
+                </Link>
+                <Link
+                  href="/demo/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={buttonStyles({
+                    variant: pathname === "/demo/admin" ? "primary" : "outline",
+                    size: "md",
+                    className: "w-full justify-center",
+                  })}
+                >
+                  <ShieldCheck className="w-4 h-4 mr-2 text-[#16A34A]" />
+                  Admin Demo
+                </Link>
+                <Link
                   href="/login"
                   onClick={() => setMobileMenuOpen(false)}
                   className={buttonStyles({
                     variant: "secondary",
                     size: "md",
-                    className: "w-full",
+                    className: "w-full justify-center",
                   })}
                 >
                   Sign In
@@ -238,12 +278,12 @@ export function Navbar() {
                   href="/register"
                   onClick={() => setMobileMenuOpen(false)}
                   className={buttonStyles({
-                    variant: "primary",
+                    variant: "ghost",
                     size: "md",
-                    className: "w-full",
+                    className: "w-full justify-center",
                   })}
                 >
-                  Get Started
+                  Register Institutional Account
                 </Link>
               </>
             )}

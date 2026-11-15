@@ -159,6 +159,169 @@ async function runBrowserTests() {
   }
 
   // =========================================================================
+  // Section 2b: Public Demo Mode & Bidirectional Role Switching (Unauthenticated)
+  // =========================================================================
+  console.log("\n--- Section 2b: Public Demo Mode & Role Switching ---");
+  await cdp.send("Page.navigate", { url: BASE_URL });
+  await sleep(800);
+
+  // 1. Landing Page Role Selection CTAs
+  const landingDemoLinks = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const userDemoBtn = document.querySelector("a[href='/demo']");
+      const adminDemoBtn = document.querySelector("a[href='/demo/admin']");
+      return {
+        hasUserDemo: Boolean(userDemoBtn),
+        hasAdminDemo: Boolean(adminDemoBtn),
+        userDemoText: userDemoBtn ? userDemoBtn.innerText : "",
+        adminDemoText: adminDemoBtn ? adminDemoBtn.innerText : "",
+      };
+    })()`,
+    returnByValue: true,
+  });
+  assert(
+    "Landing Page: Renders prominent 'Launch User Demo' action without login",
+    landingDemoLinks.result.value.hasUserDemo && landingDemoLinks.result.value.userDemoText.includes("User Demo")
+  );
+  assert(
+    "Landing Page: Renders prominent 'Launch Admin Demo' action without login",
+    landingDemoLinks.result.value.hasAdminDemo && landingDemoLinks.result.value.adminDemoText.includes("Admin Demo")
+  );
+
+  // 2. Navigate to User Demo without authentication
+  await cdp.send("Page.navigate", { url: `${BASE_URL}/demo` });
+  await sleep(1000);
+
+  const userDemoState = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const text = document.body.innerText;
+      return {
+        pathname: window.location.pathname,
+        hasAlexChen: text.includes("Alex Chen"),
+        hasStudentBadge: text.includes("Student Demo"),
+        hasReportFaultBtn: Boolean(document.querySelector("a[href='/demo/report']")),
+        hasCards: document.querySelectorAll("[role='button']").length >= 2,
+      };
+    })()`,
+    returnByValue: true,
+  });
+  assert(
+    "User Demo: Opens without authentication and maintains /demo pathname",
+    userDemoState.result.value.pathname === "/demo"
+  );
+  assert(
+    "User Demo: Displays Demo Student profile (Alex Chen)",
+    userDemoState.result.value.hasAlexChen
+  );
+  assert(
+    "User Demo: Displays sample equipment ticket history cards",
+    userDemoState.result.value.hasCards
+  );
+
+  // 3. Switch to Admin Demo via Role Switcher
+  await cdp.send("Page.navigate", { url: `${BASE_URL}/demo/admin` });
+  await sleep(1000);
+
+  const adminDemoState = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const text = document.body.innerText;
+      return {
+        pathname: window.location.pathname,
+        hasAdminHeader: text.includes("Administrator Operations Command Center"),
+        hasAdminBadge: text.includes("Admin Demo"),
+        hasTriageBtn: text.includes("Triage Ticket"),
+      };
+    })()`,
+    returnByValue: true,
+  });
+  assert(
+    "Admin Demo: Opens without authentication and maintains /demo/admin pathname",
+    adminDemoState.result.value.pathname === "/demo/admin"
+  );
+  assert(
+    "Admin Demo: Displays administrative operations command center and metrics",
+    adminDemoState.result.value.hasAdminHeader
+  );
+  assert(
+    "Admin Demo: Displays operational 'Triage Ticket' controls",
+    adminDemoState.result.value.hasTriageBtn
+  );
+
+  // 4. Submit simulated report in /demo/report
+  await cdp.send("Page.navigate", { url: `${BASE_URL}/demo/report` });
+  await sleep(800);
+
+  await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const eqInput = document.getElementById("equipmentName");
+      const assetInput = document.getElementById("assetId");
+      const descInput = document.getElementById("description");
+
+      const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+      const nativeTextAreaSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+
+      nativeSetter.call(eqInput, "Tektronix TDS2024B Digital Storage Scope");
+      eqInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+      nativeSetter.call(assetInput, "INS-OSC-042");
+      assetInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+      nativeTextAreaSetter.call(descInput, "Channel 1 attenuation capacitor drifted causing baseline offset.");
+      descInput.dispatchEvent(new Event("input", { bubbles: true }));
+    })()`,
+  });
+  await sleep(300);
+
+  // Click Submit
+  await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const submitBtn = document.querySelector("button[type='submit']");
+      if (submitBtn) submitBtn.click();
+    })()`,
+  });
+
+  // Wait for redirect to /demo
+  let demoRedirectSuccess = false;
+  for (let i = 0; i < 15; i++) {
+    await sleep(400);
+    const pathCheck = await cdp.send("Runtime.evaluate", {
+      expression: `window.location.pathname`,
+      returnByValue: true,
+    });
+    if (pathCheck.result.value === "/demo") {
+      demoRedirectSuccess = true;
+      break;
+    }
+  }
+  assert(
+    "Demo Submission: Submitted simulated ticket and redirected back to /demo",
+    demoRedirectSuccess
+  );
+
+  // Verify new ticket appears in User Demo
+  const userTicketCheck = await cdp.send("Runtime.evaluate", {
+    expression: `document.body.innerText.includes("INS-OSC-042")`,
+    returnByValue: true,
+  });
+  assert(
+    "User Demo: Newly submitted ticket (INS-OSC-042) appears in student history",
+    userTicketCheck.result.value === true
+  );
+
+  // Switch to Admin Demo and verify new ticket appears in admin queue
+  await cdp.send("Page.navigate", { url: `${BASE_URL}/demo/admin` });
+  await sleep(800);
+
+  const adminTicketCheck = await cdp.send("Runtime.evaluate", {
+    expression: `document.body.innerText.includes("INS-OSC-042")`,
+    returnByValue: true,
+  });
+  assert(
+    "Admin Demo: Newly submitted ticket (INS-OSC-042) appears in administrator queue for triage",
+    adminTicketCheck.result.value === true
+  );
+
+  // =========================================================================
   // Section 3: Floating Chatbot Real Interaction & Safety Guidelines
   // =========================================================================
   console.log("\n--- Section 3: Floating Chatbot Real Interaction & Safety ---");

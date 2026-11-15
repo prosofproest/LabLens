@@ -7,8 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node scripts/test-upload-failure.mjs && node scripts/test-upload-security.mjs && npx tsx scripts/test-signed-upload.mjs && npx tsx scripts/test-groq-triage.mjs && node scripts/test-admin-triage.mjs && npx tsx scripts/test-phase1-security.mjs",
+    "test": "node scripts/test-upload-failure.mjs && node scripts/test-upload-security.mjs && npx tsx scripts/test-signed-upload.mjs && npx tsx scripts/test-groq-triage.mjs && node scripts/test-admin-triage.mjs && npx tsx scripts/test-phase1-security.mjs && npx tsx scripts/test-demo-mode.mjs",
     "test:security": "npx tsx scripts/test-phase1-security.mjs",
+    "test:demo": "npx tsx scripts/test-demo-mode.mjs",
     "test:e2e": "firebase emulators:exec --only firestore 'node scripts/test-e2e-workflow.mjs'",
     "test:emulator": "firebase emulators:exec --only firestore 'node scripts/test-rules-emulator.mjs && node scripts/test-e2e-workflow.mjs'",
     "test:browser": "firebase emulators:exec --only firestore,auth 'node scripts/run-all-browser-tests.mjs'"
