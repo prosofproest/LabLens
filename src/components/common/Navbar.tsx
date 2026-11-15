@@ -2,32 +2,38 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ShieldAlert } from "lucide-react";
+import { Menu, X, ShieldAlert, LogOut, LayoutDashboard } from "lucide-react";
 import { buttonStyles } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { useAuth } from "@/context/AuthContext";
+import { RolePreviewSelector } from "@/components/auth/RolePreviewSelector";
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, userProfile, actualRole, activeRoleView, setActiveRoleView, logout } = useAuth();
 
   const navLinks = [
-    { label: "Overview", href: "#overview" },
-    { label: "How It Works", href: "#how-it-works" },
-    { label: "Features", href: "#features" },
-    { label: "Sample Report", href: "#sample-report" },
+    { label: "Overview", href: "/#overview" },
+    { label: "How It Works", href: "/#how-it-works" },
+    { label: "Features", href: "/#features" },
+    { label: "Sample Report", href: "/#sample-report" },
   ];
+
+  const dashboardHref = activeRoleView === "admin" ? "/admin" : "/dashboard";
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-[#E5E5EA] shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Brand Identity (≥44px target) */}
+          {/* Brand Identity */}
           <Link
-            href="#top"
+            href="/"
             className="flex items-center gap-2.5 text-[#1D1D1F] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-lg p-1.5 min-h-[44px]"
           >
             <div className="w-8 h-8 rounded-lg bg-[#0071E3] flex items-center justify-center text-white shadow-sm">
               <ShieldAlert className="w-4 h-4" />
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col text-left">
               <span className="font-semibold text-[17px] tracking-tight leading-tight">
                 LabLens <span className="text-[#0071E3]">AI</span>
               </span>
@@ -37,8 +43,8 @@ export function Navbar() {
             </div>
           </Link>
 
-          {/* Desktop Navigation Links (≥44px touch targets) */}
-          <nav className="hidden md:flex items-center gap-5">
+          {/* Desktop Navigation Links */}
+          <nav className="hidden md:flex items-center gap-4">
             {navLinks.map((link) => (
               <a
                 key={link.href}
@@ -50,28 +56,70 @@ export function Navbar() {
             ))}
           </nav>
 
-          {/* Desktop Action CTAs (Direct styled anchors, no button nesting) */}
+          {/* Desktop Action & Auth State */}
           <div className="hidden md:flex items-center gap-3">
-            <a
-              href="#sample-report"
-              className={buttonStyles({ variant: "secondary", size: "sm" })}
-            >
-              View Demo
-            </a>
-            <a
-              href="#overview"
-              className={buttonStyles({ variant: "primary", size: "sm" })}
-            >
-              Explore Platform
-            </a>
+            {user ? (
+              <>
+                {/* Role Switcher for Hackathon Demonstrations */}
+                <RolePreviewSelector
+                  activeRoleView={activeRoleView}
+                  actualRole={actualRole}
+                  onSelectRole={setActiveRoleView}
+                />
+
+                <Link
+                  href={dashboardHref}
+                  className={buttonStyles({ variant: "outline", size: "sm" })}
+                >
+                  <LayoutDashboard className="w-3.5 h-3.5 mr-1" />
+                  Dashboard
+                </Link>
+
+                <div className="flex items-center gap-2 pl-2 border-l border-[#E5E5EA]">
+                  <Badge variant={actualRole === "admin" ? "success" : "neutral"} size="sm">
+                    {userProfile?.name ? userProfile.name.split(" ")[0] : "User"} (
+                    {actualRole === "admin" ? "Admin" : "User"})
+                  </Badge>
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="p-2 rounded-lg text-[#656565] hover:text-[#DC2626] hover:bg-[#FEE2E2]/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626] min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                    aria-label="Sign out"
+                    title="Sign Out"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className={buttonStyles({ variant: "ghost", size: "sm" })}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  className={buttonStyles({ variant: "primary", size: "sm" })}
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
 
-          {/* Mobile Menu Button (Explicit 44x44px target) */}
-          <div className="flex md:hidden">
+          {/* Mobile Menu Button */}
+          <div className="flex md:hidden items-center gap-2">
+            {user && (
+              <Badge variant={actualRole === "admin" ? "success" : "neutral"} size="sm">
+                {actualRole === "admin" ? "Admin" : "User"}
+              </Badge>
+            )}
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-[#656565] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] flex items-center justify-center"
+              className="min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-[#656565] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] flex items-center justify-center cursor-pointer"
               aria-expanded={mobileMenuOpen}
               aria-label="Toggle navigation menu"
             >
@@ -88,6 +136,27 @@ export function Navbar() {
       {/* Mobile Menu Dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-[#E5E5EA] bg-white px-4 pt-3 pb-5 space-y-3 shadow-lg">
+          {user && (
+            <div className="pb-3 border-b border-[#E5E5EA] space-y-2">
+              <div className="flex items-center justify-between text-xs text-[#656565]">
+                <span>Logged in as <strong>{user.email}</strong></span>
+                <Badge variant={actualRole === "admin" ? "success" : "neutral"} size="sm">
+                  {actualRole}
+                </Badge>
+              </div>
+              <div className="pt-1">
+                <RolePreviewSelector
+                  activeRoleView={activeRoleView}
+                  actualRole={actualRole}
+                  onSelectRole={(r) => {
+                    setActiveRoleView(r);
+                    setMobileMenuOpen(false);
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col space-y-1">
             {navLinks.map((link) => (
               <a
@@ -100,29 +169,64 @@ export function Navbar() {
               </a>
             ))}
           </div>
+
           <div className="pt-3 border-t border-[#E5E5EA] flex flex-col gap-2.5">
-            <a
-              href="#sample-report"
-              onClick={() => setMobileMenuOpen(false)}
-              className={buttonStyles({
-                variant: "secondary",
-                size: "md",
-                className: "w-full",
-              })}
-            >
-              View Sample Report
-            </a>
-            <a
-              href="#overview"
-              onClick={() => setMobileMenuOpen(false)}
-              className={buttonStyles({
-                variant: "primary",
-                size: "md",
-                className: "w-full",
-              })}
-            >
-              Explore Platform
-            </a>
+            {user ? (
+              <>
+                <Link
+                  href={dashboardHref}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={buttonStyles({
+                    variant: "primary",
+                    size: "md",
+                    className: "w-full",
+                  })}
+                >
+                  <LayoutDashboard className="w-4 h-4 mr-2" />
+                  Go to Dashboard
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    logout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={buttonStyles({
+                    variant: "outline",
+                    size: "md",
+                    className: "w-full text-[#DC2626] border-[#FECACA] hover:bg-[#FEE2E2]/30",
+                  })}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={buttonStyles({
+                    variant: "secondary",
+                    size: "md",
+                    className: "w-full",
+                  })}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  href="/register"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={buttonStyles({
+                    variant: "primary",
+                    size: "md",
+                    className: "w-full",
+                  })}
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isValidDepartment(dept) {
+      return dept in [
+        'Computer Science & Engineering',
+        'Information Technology',
+        'Electronics & Communication Engineering',
+        'Electrical & Electronics Engineering',
+        'Mechanical Engineering',
+        'Civil Engineering',
+        'General Sciences & Humanities'
+      ];
+    }
+
+    // --- USERS COLLECTION ---
+    match /users/{userId} {
+      // 1. Read: User can read their own profile; Admins can read any profile
+      allow read: if isOwner(userId) || isAdmin();
+
+      // 2. Create (Registration): Strict type and field validation
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'user'
+        && request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 80
+        && request.resource.data.email is string
+        && isValidDepartment(request.resource.data.department)
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'email', 'role', 'department', 'createdAt']);
+
+      // 3. Update: Strict field limitation for normal users
+      allow update: if isAuthenticated() && (
+        (
+          isOwner(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'department'])
+          && request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 80
+          && isValidDepartment(request.resource.data.department)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.createdAt == resource.data.createdAt
+        )
+        || isAdmin()
+      );
+
+      // 4. Delete: Admins only
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -2,6 +2,27 @@
 
 export type UserRole = "user" | "admin";
 
+export const APPROVED_DEPARTMENTS = [
+  "Computer Science & Engineering",
+  "Information Technology",
+  "Electronics & Communication Engineering",
+  "Electrical & Electronics Engineering",
+  "Mechanical Engineering",
+  "Civil Engineering",
+  "General Sciences & Humanities",
+] as const;
+
+export type Department = (typeof APPROVED_DEPARTMENTS)[number];
+
+export interface UserProfile {
+  uid: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  department: Department;
+  createdAt: string; // ISO date string or formatted representation
+}
+
 export type ReportStatus =
   | "Reported"
   | "In-Review"
@@ -54,3 +75,17 @@ export interface FaultReport {
   updatedAt: string;
 }
 
+export interface AuthContextType {
+  user: import("firebase/auth").User | null;
+  userProfile: UserProfile | null;
+  actualRole: UserRole;
+  activeRoleView: UserRole;
+  isRoleSimulated: boolean;
+  missingProfile: boolean;
+  loading: boolean;
+  login: (email: string, pass: string) => Promise<void>;
+  register: (name: string, email: string, pass: string, dept: Department) => Promise<void>;
+  logout: () => Promise<void>;
+  retryCreateProfile: (name: string, dept: Department) => Promise<void>;
+  setActiveRoleView: (role: UserRole) => void;
+}
