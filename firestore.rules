@@ -34,7 +34,7 @@ service cloud.firestore {
     //     - department: string (optional, <= 100 chars)
     //   - imageUrl: string or null (max 2048 chars) - Cloudinary image URL
     //   - imagePublicId: string or null (max 255 chars) - Cloudinary public ID
-    //   - aiAnalysis: null on creation (managed by AI/admin triage)
+    //   - aiAnalysis: null or map (AI triage analysis)
     //   - assignedTechnician: null on creation (assigned by admin)
     //   - assignedAt: null on creation (timestamp when technician assigned)
     //   - adminNotes: null on creation (administrative remarks)
@@ -72,6 +72,26 @@ service cloud.firestore {
       return priority in ['Low', 'Medium', 'High', 'Critical'];
     }
 
+    function isValidAiAnalysis(ai) {
+      return ai is map
+        && ai.keys().hasAll([
+          'isAiGenerated', 'status', 'suggestedCategory', 'suggestedPriority',
+          'executiveSummary', 'possibleRootCause', 'recommendedAction', 'analyzedAt'
+        ])
+        && ai.keys().hasOnly([
+          'isAiGenerated', 'status', 'suggestedCategory', 'suggestedPriority',
+          'executiveSummary', 'possibleRootCause', 'recommendedAction', 'analyzedAt'
+        ])
+        && ai.isAiGenerated is bool
+        && ai.status in ['success', 'unavailable', 'skipped']
+        && ai.suggestedCategory in ['Hardware', 'Software', 'Network', 'Power/Electrical', 'Peripheral', 'Other']
+        && isValidPriority(ai.suggestedPriority)
+        && ai.executiveSummary is string && ai.executiveSummary.size() <= 1000
+        && ai.possibleRootCause is string && ai.possibleRootCause.size() <= 1000
+        && ai.recommendedAction is string && ai.recommendedAction.size() <= 1000
+        && ai.analyzedAt is string;
+    }
+
     function isValidReporter(reporter) {
       return reporter is map
         && reporter.keys().hasAll(['uid', 'name', 'email'])
@@ -104,7 +124,7 @@ service cloud.firestore {
         && isValidReporter(data.reportedBy)
         && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2048))
         && (data.imagePublicId == null || (data.imagePublicId is string && data.imagePublicId.size() <= 255))
-        && data.aiAnalysis == null
+        && (data.aiAnalysis == null || isValidAiAnalysis(data.aiAnalysis))
         && data.assignedTechnician == null
         && data.assignedAt == null
         && data.adminNotes == null;

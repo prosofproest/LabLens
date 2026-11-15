@@ -4,7 +4,7 @@ import React, { useEffect } from "react";
 import Image from "next/image";
 import { FaultReport } from "@/types";
 import { Badge } from "@/components/ui/Badge";
-import { X, Calendar, MapPin, Tag, Wrench, User } from "lucide-react";
+import { X, Calendar, MapPin, Tag, Wrench, User, Sparkles, AlertTriangle, ShieldCheck } from "lucide-react";
 
 interface ReportDetailModalProps {
   report: FaultReport | null;
@@ -135,6 +135,79 @@ export function ReportDetailModal({ report, onClose }: ReportDetailModalProps) {
               {report.description}
             </div>
           </div>
+
+          {/* AI-Assisted Triage Advisory Card */}
+          {report.aiAnalysis && (
+            <div className="rounded-2xl border border-[#B9E1FF] bg-[#F4F9FF] p-4.5 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#D0E7FF] pb-2.5">
+                <div className="flex items-center gap-1.5 text-[#0071E3]">
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-xs font-semibold tracking-tight">
+                    AI-Assisted Assessment (Advisory — Subject to Technical Review)
+                  </span>
+                </div>
+                <Badge
+                  variant={report.aiAnalysis.status === "success" ? "info" : "neutral"}
+                  size="sm"
+                >
+                  {report.aiAnalysis.status === "success" ? "Groq AI Triage" : "Triage Unavailable"}
+                </Badge>
+              </div>
+
+              {report.aiAnalysis.status === "success" ? (
+                <div className="space-y-2.5 text-xs text-[#1D1D1F]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[#656565]">Suggested Category:</span>
+                    <Badge variant="neutral" size="sm">
+                      {report.aiAnalysis.suggestedCategory}
+                    </Badge>
+                    <span className="text-[#656565] ml-2">Suggested Priority:</span>
+                    <Badge variant={getPriorityVariant(report.aiAnalysis.suggestedPriority)} size="sm">
+                      {report.aiAnalysis.suggestedPriority}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="font-semibold text-[#1D1D1F] block text-[11px] uppercase tracking-wider">
+                      Technical Summary
+                    </span>
+                    <p className="leading-relaxed text-[#404040]">
+                      {report.aiAnalysis.executiveSummary}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="font-semibold text-[#1D1D1F] block text-[11px] uppercase tracking-wider">
+                      Hypothesized Root Cause
+                    </span>
+                    <p className="leading-relaxed text-[#404040]">
+                      {report.aiAnalysis.possibleRootCause}
+                    </p>
+                  </div>
+
+                  <div className="space-y-1 p-3 rounded-xl bg-white border border-[#D0E7FF]">
+                    <span className="font-semibold text-[#0071E3] flex items-center gap-1 text-[11px] uppercase tracking-wider">
+                      <ShieldCheck className="w-3.5 h-3.5" /> Recommended Safe Protocol
+                    </span>
+                    <p className="leading-relaxed text-[#1D1D1F]">
+                      {report.aiAnalysis.recommendedAction}
+                    </p>
+                  </div>
+
+                  <p className="text-[10px] text-[#86868B] italic pt-1">
+                    * AI assessments are advisory only. Departmental technicians retain full authority to verify symptoms and override priority in Phase 5.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-start gap-2 text-xs text-[#656565]">
+                  <AlertTriangle className="w-4 h-4 text-[#D97706] shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    Automated symptom triage was unavailable at submission time. A lab technician will review symptoms and prioritize this ticket during physical inspection.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Status & Maintenance Notes */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">

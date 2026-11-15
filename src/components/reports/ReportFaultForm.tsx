@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { createFaultReport } from "@/lib/firebase/reports";
-import { CAMPUS_LABS } from "@/types";
+import { CAMPUS_LABS, AiSuggestionData } from "@/types";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ImageUpload } from "@/components/reports/ImageUpload";
@@ -24,6 +24,7 @@ export function ReportFaultForm() {
   const [imagePublicId, setImagePublicId] = useState<string | undefined>(undefined);
 
   const [loading, setLoading] = useState(false);
+  const [submissionStep, setSubmissionStep] = useState<"idle" | "analyzing" | "saving">("idle");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -65,6 +66,52 @@ export function ReportFaultForm() {
 
     try {
       setLoading(true);
+      setSubmissionStep("analyzing");
+
+      let aiAnalysis: AiSuggestionData = {
+        isAiGenerated: false,
+        status: "unavailable",
+        suggestedCategory: "Other",
+        suggestedPriority: "Medium",
+        executiveSummary: "Automated analysis was unavailable during ticket submission.",
+        possibleRootCause: "Live AI evaluation service could not be reached or timed out.",
+        recommendedAction: "Maintain safe physical clearance and await technician triage.",
+        analyzedAt: new Date().toISOString(),
+      };
+
+      try {
+        const idToken = await user.getIdToken();
+        const triageController = new AbortController();
+        const triageTimeout = setTimeout(() => triageController.abort(), 8000);
+
+        const triageRes = await fetch("/api/reports/analyze", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({
+            equipmentName: trimmedEquipment,
+            assetId: trimmedAsset,
+            labName: finalLab,
+            description: trimmedDesc,
+          }),
+          signal: triageController.signal,
+        });
+
+        clearTimeout(triageTimeout);
+
+        if (triageRes.ok) {
+          const triageData = await triageRes.json();
+          if (triageData.analysis) {
+            aiAnalysis = triageData.analysis;
+          }
+        }
+      } catch (triageErr) {
+        console.warn("AI Triage unavailable, proceeding with resilient report submission:", triageErr);
+      }
+
+      setSubmissionStep("saving");
 
       await createFaultReport(
         {
@@ -74,6 +121,7 @@ export function ReportFaultForm() {
           description: trimmedDesc,
           imageUrl,
           imagePublicId,
+          aiAnalysis,
         },
         {
           uid: user.uid,
@@ -94,6 +142,7 @@ export function ReportFaultForm() {
       setError(message);
     } finally {
       setLoading(false);
+      setSubmissionStep("idle");
     }
   };
 
@@ -269,7 +318,7 @@ export function ReportFaultForm() {
             {loading ? (
               <span className="flex items-center gap-1.5">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Submitting Ticket...
+                {submissionStep === "analyzing" ? "Consulting Groq AI..." : "Saving Ticket..."}
               </span>
             ) : (
               "Submit Fault Report"

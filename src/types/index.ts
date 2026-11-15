@@ -64,7 +64,6 @@ export interface AiSuggestionData {
   executiveSummary: string;
   possibleRootCause: string;
   recommendedAction: string;
-  confidenceScore: number;
   analyzedAt: string;
 }
 
@@ -99,6 +98,7 @@ export interface CreateReportInput {
   description: string;
   imageUrl?: string;
   imagePublicId?: string;
+  aiAnalysis?: AiSuggestionData | null;
 }
 
 export interface AuthContextType {

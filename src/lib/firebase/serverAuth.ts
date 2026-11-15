@@ -70,3 +70,4 @@ export async function verifyFirebaseIdToken(token: string): Promise<VerifiedFire
     emailVerified: Boolean(payload.email_verified),
   };
 }
+

@@ -417,9 +417,38 @@ async function runTests() {
     deleteDoc("reports", "report_user_b", "user_a", "user_a@college.edu")
   );
 
-  // R_P1. Authenticated user can create their own valid report
+  // R_N8. User cannot create report with invalid or tampered aiAnalysis
+  await assertFails(
+    "Report Negative 8: User cannot create report with invalid or tampered aiAnalysis",
+    createDoc("reports", "invalid_ai_report", {
+      equipmentName: "Dell Precision 3640",
+      assetId: "LAB-CS-101",
+      labName: "Advanced Computing Lab (Room 304)",
+      description: "Boot drive failed S.M.A.R.T. self-test with error code 0x8004.",
+      imageUrl: null,
+      imagePublicId: null,
+      reportedBy: {
+        uid: "user_a",
+        name: "User A Student",
+        email: "user_a@college.edu",
+      },
+      status: "Reported",
+      priority: "High",
+      aiAnalysis: {
+        isAiGenerated: true,
+        status: "tampered_illegal_status",
+      },
+      assignedTechnician: null,
+      assignedAt: null,
+      adminNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, "user_a", "user_a@college.edu")
+  );
+
+  // R_P1. Authenticated user can create their own valid report with AI analysis
   await assertSucceeds(
-    "Report Positive 1: Authenticated user can create their own valid report",
+    "Report Positive 1: Authenticated user can create valid report with AI analysis",
     createDoc("reports", "valid_report_user_a", {
       equipmentName: "Dell Precision 3640",
       assetId: "LAB-CS-101",
@@ -435,7 +464,16 @@ async function runTests() {
       },
       status: "Reported",
       priority: "High",
-      aiAnalysis: null,
+      aiAnalysis: {
+        isAiGenerated: true,
+        status: "success",
+        suggestedCategory: "Hardware",
+        suggestedPriority: "High",
+        executiveSummary: "Drive controller SMART threshold tripped.",
+        possibleRootCause: "SSD block wearout.",
+        recommendedAction: "Maintain clearance and wait for technician disk replacement.",
+        analyzedAt: new Date().toISOString(),
+      },
       assignedTechnician: null,
       assignedAt: null,
       adminNotes: null,

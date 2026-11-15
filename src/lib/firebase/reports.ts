@@ -83,8 +83,8 @@ export async function createFaultReport(
       department: reporter.department || "",
     },
     status: "Reported",
-    priority: "Medium", // Standard initial priority until Phase 4 AI automated triage
-    aiAnalysis: null,
+    priority: input.aiAnalysis?.suggestedPriority || "Medium",
+    aiAnalysis: input.aiAnalysis || null,
     assignedTechnician: null,
     assignedAt: null,
     adminNotes: null,
