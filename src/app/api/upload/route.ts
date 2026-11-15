@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCloudinaryConfigured, uploadImageBuffer } from "@/lib/cloudinary/server";
 import { verifyFirebaseIdToken, VerifiedFirebaseToken } from "@/lib/firebase/serverAuth";
-
-const ALLOWED_MIME_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-];
-
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+import { validateImageBuffer } from "@/lib/security/imageSignature";
 
 export async function POST(req: NextRequest) {
   try {
@@ -69,31 +61,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Validate MIME type
-    if (!ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
+    // 4. Validate file size constraints (non-empty and strictly <= 5MB)
+    const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+    if (file.size === 0) {
       return NextResponse.json(
-        {
-          error: `Unsupported file format (${file.type}). Please upload a JPEG, PNG, WEBP, or GIF image.`,
-        },
+        { error: "The uploaded file is empty (0 bytes). Please upload a valid image file." },
         { status: 400 }
       );
     }
-
-    // 5. Validate file size (<= 5MB)
     if (file.size > MAX_FILE_SIZE_BYTES) {
-      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
       return NextResponse.json(
-        {
-          error: `File size exceeds the 5MB limit (current: ${sizeMb}MB). Please upload a smaller image.`,
-        },
+        { error: "Image file exceeds the maximum allowed size of 5 MB." },
         { status: 400 }
       );
     }
 
-    // 6. Convert file to Buffer and stream to Cloudinary (scoped by authenticated user UID)
+    // 5. Convert file to Buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
+    // 6. Deep signature and structural integrity validation (magic bytes, headers, chunk boundaries)
+    const validation = validateImageBuffer(buffer, file.type);
+    if (!validation.isValid) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    // 7. Stream verified image buffer to Cloudinary (scoped by authenticated user UID)
     const result = await uploadImageBuffer(buffer, `lablens-fault-reports/${verifiedUser.uid}`);
 
     return NextResponse.json(

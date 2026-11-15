@@ -210,12 +210,24 @@ async function runPhase1SecurityTests() {
   });
   check("3.4 Referer 'http://localhost:3000/dashboard' is trusted", isTrustedGuestOrigin(refererReq) === true);
 
-  // 3.5 Vercel deployment preview domain is trusted
-  const vercelReq = createMockRequest("https://lablens-preview.vercel.app/api/chat", {
+  // 3.5 Configured trusted origin in APP_TRUSTED_ORIGINS is allowed
+  process.env.APP_TRUSTED_ORIGINS = "https://lablens.ac.in,https://lablens-preview.vercel.app";
+  const configuredOriginReq = createMockRequest("http://localhost:3000/api/chat", {
     origin: "https://lablens-preview.vercel.app",
-    host: "lablens-preview.vercel.app",
   });
-  check("3.5 Vercel app domain 'https://lablens-preview.vercel.app' is trusted", isTrustedGuestOrigin(vercelReq) === true);
+  check(
+    "3.5 Configured origin in APP_TRUSTED_ORIGINS ('https://lablens-preview.vercel.app') is trusted",
+    isTrustedGuestOrigin(configuredOriginReq) === true
+  );
+
+  // 3.5b Arbitrary unconfigured Vercel domain is strictly rejected (no blanket wildcard)
+  const arbitraryVercelReq = createMockRequest("http://localhost:3000/api/chat", {
+    origin: "https://arbitrary-attacker-site.vercel.app",
+  });
+  check(
+    "3.5b Arbitrary unconfigured Vercel domain ('https://arbitrary-attacker-site.vercel.app') is strictly rejected",
+    isTrustedGuestOrigin(arbitraryVercelReq) === false
+  );
 
   // 3.6 Cross-site malicious origin is rejected
   const maliciousReq = createMockRequest("http://localhost:3000/api/chat", {

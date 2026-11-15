@@ -14,10 +14,77 @@ interface ChatRequestBody {
 }
 
 /**
+ * Normalizes an origin candidate string into a canonical origin URL string.
+ * Strips paths, trailing slashes, and lowercases the host.
+ */
+function normalizeOrigin(originCandidate: string): string | null {
+  try {
+    const url = new URL(originCandidate.trim());
+    return url.origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Builds the exact set of trusted origins from environment configuration.
+ * Strictly avoids blanket wildcards.
+ */
+export function getExactTrustedOrigins(): Set<string> {
+  const trusted = new Set<string>();
+
+  // 1. Explicitly configured APP_TRUSTED_ORIGINS (comma-separated list of full origins)
+  const rawList = process.env.APP_TRUSTED_ORIGINS?.trim();
+  if (rawList) {
+    for (const item of rawList.split(",")) {
+      const normalized = normalizeOrigin(item);
+      if (normalized) {
+        trusted.add(normalized);
+      }
+    }
+  }
+
+  // 2. Canonical NEXT_PUBLIC_APP_URL
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (appUrl) {
+    const normalized = normalizeOrigin(appUrl);
+    if (normalized) {
+      trusted.add(normalized);
+    }
+  }
+
+  // 3. Exact Vercel deployment URLs (never wildcard *.vercel.app)
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (vercelUrl) {
+    const normalized = normalizeOrigin(`https://${vercelUrl}`);
+    if (normalized) {
+      trusted.add(normalized);
+    }
+  }
+
+  const vercelProdUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  if (vercelProdUrl) {
+    const normalized = normalizeOrigin(`https://${vercelProdUrl}`);
+    if (normalized) {
+      trusted.add(normalized);
+    }
+  }
+
+  return trusted;
+}
+
+/**
  * Validates that unauthenticated guest requests originate from trusted application origins.
- * Supports configured production URLs, Vercel deployments, and local development hostnames.
+ * In production:
+ * - Requires a valid Origin or Referer header.
+ * - Rejects missing, malformed, or untrusted origins.
+ * - Does not trust arbitrary Host headers as a substitute for Origin.
+ * In development:
+ * - Preserves localhost and loopback development/testing origins.
  */
 export function isTrustedGuestOrigin(req: NextRequest): boolean {
+  const isDev = process.env.NODE_ENV !== "production";
+
   const originHeader = req.headers.get("origin")?.trim();
   const refererHeader = req.headers.get("referer")?.trim();
 
@@ -30,70 +97,54 @@ export function isTrustedGuestOrigin(req: NextRequest): boolean {
     } catch {
       return false;
     }
-  } else if (req.headers.get("host")) {
-    const host = req.headers.get("host")!;
-    const proto = req.headers.get("x-forwarded-proto") || "http";
-    candidateOrigin = `${proto}://${host}`;
-  } else if (req.nextUrl?.origin && req.nextUrl.origin !== "null") {
-    candidateOrigin = req.nextUrl.origin;
-  } else if (req.url) {
-    try {
-      candidateOrigin = new URL(req.url).origin;
-    } catch {
-      return false;
+  } else if (isDev) {
+    // In local development and testing only: allow local dev tools/scripts calling without origin
+    if (req.nextUrl?.origin && req.nextUrl.origin !== "null") {
+      candidateOrigin = req.nextUrl.origin;
+    } else if (req.url) {
+      try {
+        candidateOrigin = new URL(req.url).origin;
+      } catch {
+        return false;
+      }
     }
   }
 
-  // Unauthenticated requests with no identifiable origin are rejected
+  // Unauthenticated requests missing identifiable origin are strictly rejected
   if (!candidateOrigin) {
+    return false;
+  }
+
+  const normalizedCandidate = normalizeOrigin(candidateOrigin);
+  if (!normalizedCandidate) {
     return false;
   }
 
   let candidateUrl: URL;
   try {
-    candidateUrl = new URL(candidateOrigin);
+    candidateUrl = new URL(normalizedCandidate);
   } catch {
     return false;
   }
 
   const hostname = candidateUrl.hostname.toLowerCase();
 
-  // 1. Safe local development and test suite origins
-  if (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "0.0.0.0" ||
-    hostname === "::1"
-  ) {
+  // Local development and loopback origins (strictly allowed only in non-production)
+  if (isDev) {
+    if (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "0.0.0.0" ||
+      hostname === "::1"
+    ) {
+      return true;
+    }
+  }
+
+  // Exact matching against configured trusted origins allowlist
+  const trustedOrigins = getExactTrustedOrigins();
+  if (trustedOrigins.has(normalizedCandidate)) {
     return true;
-  }
-
-  // 2. Configured application origin (NEXT_PUBLIC_APP_URL)
-  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (configuredAppUrl) {
-    try {
-      const appUrl = new URL(configuredAppUrl);
-      if (candidateUrl.origin === appUrl.origin) {
-        return true;
-      }
-    } catch {}
-  }
-
-  // 3. Vercel deployment environments
-  const vercelUrl = process.env.VERCEL_URL?.trim()?.toLowerCase();
-  if (vercelUrl) {
-    if (hostname === vercelUrl || hostname.endsWith(".vercel.app")) {
-      return true;
-    }
-  }
-
-  // 4. Same-origin match against the Host header
-  const hostHeader = req.headers.get("host")?.trim()?.toLowerCase();
-  if (hostHeader) {
-    const hostWithoutPort = hostHeader.split(":")[0];
-    if (hostname === hostWithoutPort) {
-      return true;
-    }
   }
 
   return false;
