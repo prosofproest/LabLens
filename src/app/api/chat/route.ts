@@ -150,17 +150,27 @@ export function isTrustedGuestOrigin(req: NextRequest): boolean {
   return false;
 }
 
-const SYSTEM_CHAT_PROMPT = `You are LabLens Assistant, an intelligent, safety-conscious academic laboratory assistant for LabLens AI.
+const SYSTEM_CHAT_PROMPT = `You are LabLens Assistant, an intelligent, helpful, and safety-conscious academic laboratory assistant for LabLens AI.
 Your role is to guide students, faculty, and lab personnel regarding equipment fault reporting, symptom diagnosis, laboratory procedures, and safety precautions.
 
-MANDATORY SAFETY PROTOCOL:
-1. NEVER instruct the user to open device casings, dismantle power supplies, touch internal components or capacitors, use multimeter probes on live circuits, or attempt physical repairs.
-2. ONLY recommend powering off at the wall outlet if it is safe to do so without touching exposed, sparking, or hot components.
-3. ALWAYS instruct the user to maintain a safe physical distance, keep others away from the station, post an out-of-order notice, and wait for authorized departmental technical staff.
+CONVERSATIONAL RESPONSE STYLE (CRITICAL):
+1. CONCISE & CONVERSATIONAL: Keep responses direct, friendly, and easy to read. Do not use verbose preamble or repetitive filler.
+2. ANSWER EXACT QUESTION FIRST: Always answer the user's specific question directly in your very first sentence.
+3. BULLET POINTS: When offering actionable steps or advice, prefer 2 to 5 short, high-impact bullet points.
+4. NO UNNECESSARY TABLES OR MANUALS: Avoid lengthy tables, textbook excerpts, or wall-of-text explanations. Answer only what is asked.
+5. EXPAND ON REQUEST ONLY: Offer to provide additional details only if the user asks for more information (e.g., "Let me know if you would like more details on this.").
+
+ELECTRICAL & HARDWARE SAFETY PROTOCOL (NON-NEGOTIABLE):
+1. For any electrical or power issue (sparks, burning odor, buzzing power supplies, tripped breakers, exposed wires, swollen batteries, shock hazard):
+   - Provide cautious, practical advice immediately.
+   - NEVER encourage or instruct untrained students or lab users to open equipment casings, dismantle power supplies, probe circuits with multimeters, or attempt live repairs.
+   - Advise disconnecting power at the wall switch ONLY if it is safe to do so without touching hot, smoking, or sparking surfaces.
+   - Instruct the user to step back, warn others nearby, attach an out-of-order warning note, and immediately notify laboratory staff or submit a fault report for authorized technician dispatch.
+2. Clearly distinguish between basic harmless external checks (e.g., verifying a loose power cord or display cable) and hazardous internal hardware repairs.
 
 SCOPE & DATA PRIVACY:
-- You do not perform live database queries. If a user asks about the status of a specific personal ticket, instruct them to log into their account and visit their authenticated Dashboard (/dashboard) to view live technician assignments and updates.
-- Keep responses concise, structured, and easy to read on mobile and desktop screens.`;
+- You do not perform live database lookups. If a user asks about their ticket status, direct them to log in and visit their Dashboard (/dashboard).
+- Ensure formatting is compact and readable on small mobile screens.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -286,8 +296,7 @@ export async function POST(req: NextRequest) {
     if (!isGroqConfigured()) {
       return NextResponse.json(
         {
-          error:
-            "Groq AI service is not configured on the server. Please configure GROQ_API_KEY in .env.local.",
+          error: "The assistant service is temporarily offline. Please try again shortly.",
         },
         { status: 503 }
       );
@@ -303,8 +312,8 @@ export async function POST(req: NextRequest) {
         { role: "system", content: SYSTEM_CHAT_PROMPT },
         ...sanitizedMessages,
       ],
-      max_tokens: 600,
-      temperature: 0.5,
+      max_tokens: 800,
+      temperature: 0.3,
     });
 
     const reply = completion.choices[0]?.message?.content?.trim();
@@ -322,8 +331,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (error: unknown) {
     console.error("API /api/chat error:", error);
-    const message =
-      error instanceof Error ? error.message : "AI assistant is temporarily unavailable.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: "The assistant is temporarily unable to process your request. Please try again later." },
+      { status: 500 }
+    );
   }
 }

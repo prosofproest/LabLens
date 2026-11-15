@@ -6,7 +6,6 @@ import {
   MessageSquare,
   X,
   Send,
-  Loader2,
   Bot,
   AlertCircle,
   Trash2,
@@ -190,9 +189,13 @@ export function FloatingChatbot() {
             {/* Loading Indicator */}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl px-4 py-3 flex items-center gap-2 text-[#86868B]">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0071E3]" />
-                  <span className="text-xs">Consulting Groq AI...</span>
+                <div className="bg-[#F5F5F7] border border-[#E5E5EA] rounded-2xl px-4 py-2.5 flex items-center gap-2.5 text-[#86868B]">
+                  <div className="flex items-center gap-1 py-0.5" aria-hidden="true">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#0071E3] animate-bounce" />
+                  </div>
+                  <span className="text-xs font-medium text-[#656565]">Thinking...</span>
                 </div>
               </div>
             )}

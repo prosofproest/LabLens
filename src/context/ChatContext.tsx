@@ -85,7 +85,15 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.error || "Failed to receive response from AI assistant.");
+          let userMessage = typeof data?.error === "string" ? data.error : "";
+          if (res.status === 429) {
+            userMessage = userMessage || "Chat rate limit reached. Please wait a moment before sending another message.";
+          } else if (res.status === 503) {
+            userMessage = "The assistant is temporarily offline. Please try again shortly.";
+          } else if (res.status >= 500 || !userMessage) {
+            userMessage = "The assistant is temporarily unavailable. Please try again later.";
+          }
+          throw new Error(userMessage);
         }
 
         const assistantMessage: ChatMessage = {
