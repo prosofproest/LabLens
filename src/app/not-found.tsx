@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { buttonStyles } from "@/components/ui/Button";
 import { FileQuestion } from "lucide-react";
 
 export default function NotFound() {
@@ -18,12 +18,12 @@ export default function NotFound() {
       <p className="max-w-md text-sm text-[#656565] leading-relaxed mb-6">
         The requested page could not be located on the LabLens AI platform. Please check the URL or return to the main portal.
       </p>
-      <Link href="/">
-        <Button variant="primary" size="md">
-          Return to Home
-        </Button>
+      <Link
+        href="/"
+        className={buttonStyles({ variant: "primary", size: "md" })}
+      >
+        Return to Home
       </Link>
     </div>
   );
 }
-

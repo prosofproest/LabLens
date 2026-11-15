@@ -11,11 +11,11 @@ export function Footer() {
     <footer className="bg-white border-t border-[#E5E5EA] py-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-[#E5E5EA]">
-          {/* Brand Info */}
+          {/* Brand Info (≥44px touch target) */}
           <div className="space-y-1.5 max-w-md">
             <Link
               href="#top"
-              className="flex items-center gap-2 text-[#1D1D1F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md p-1"
+              className="inline-flex items-center gap-2 text-[#1D1D1F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md p-1.5 min-h-[44px]"
             >
               <div className="w-6 h-6 rounded-md bg-[#0071E3] flex items-center justify-center text-white">
                 <ShieldAlert className="w-3.5 h-3.5" />
@@ -30,35 +30,35 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Working Section Anchor Links */}
-          <nav className="flex flex-wrap items-center gap-6 text-xs text-[#656565]">
+          {/* Working Section Anchor Links (≥44px touch targets) */}
+          <nav className="flex flex-wrap items-center gap-4 text-xs text-[#656565]">
             <a
               href="#overview"
-              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-2 py-2 min-h-[44px] inline-flex items-center"
             >
               Overview
             </a>
             <a
               href="#how-it-works"
-              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-2 py-2 min-h-[44px] inline-flex items-center"
             >
               How It Works
             </a>
             <a
               href="#features"
-              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-2 py-2 min-h-[44px] inline-flex items-center"
             >
               Core Features
             </a>
             <a
               href="#sample-report"
-              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-2 py-2 min-h-[44px] inline-flex items-center"
             >
               Demonstration
             </a>
             <a
               href="#top"
-              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-2 py-2 min-h-[44px] inline-flex items-center"
             >
               Back to Top
             </a>

@@ -11,7 +11,7 @@ import {
   Cpu,
   UserCheck,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { buttonStyles } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 
@@ -38,18 +38,20 @@ export default function Home() {
           A centralized platform where users report equipment faults, AI provides advisory triage suggestions, and administrators manage repairs.
         </p>
 
-        {/* Hero CTAs */}
+        {/* Hero CTAs (Direct styled anchors, no button nesting) */}
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          <a href="#overview">
-            <Button variant="primary" size="lg">
-              Explore Platform
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Button>
+          <a
+            href="#overview"
+            className={buttonStyles({ variant: "primary", size: "lg" })}
+          >
+            Explore Platform
+            <ArrowRight className="w-4 h-4 ml-1" />
           </a>
-          <a href="#sample-report">
-            <Button variant="secondary" size="lg">
-              View Sample Report
-            </Button>
+          <a
+            href="#sample-report"
+            className={buttonStyles({ variant: "secondary", size: "lg" })}
+          >
+            View Sample Report
           </a>
         </div>
       </section>
@@ -367,15 +369,17 @@ export default function Home() {
             LabLens AI combines structured reporting, advisory AI triage, and simple administrative management to keep campus laboratories running efficiently.
           </p>
           <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
-            <a href="#sample-report">
-              <Button variant="primary" size="lg">
-                Review Sample Demonstration
-              </Button>
+            <a
+              href="#sample-report"
+              className={buttonStyles({ variant: "primary", size: "lg" })}
+            >
+              Review Sample Demonstration
             </a>
-            <a href="#features">
-              <Button variant="secondary" size="lg">
-                Explore Core Features
-              </Button>
+            <a
+              href="#features"
+              className={buttonStyles({ variant: "secondary", size: "lg" })}
+            >
+              Explore Core Features
             </a>
           </div>
         </Card>
