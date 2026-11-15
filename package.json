@@ -11,7 +11,7 @@
   "dependencies": {
     "@next/swc-darwin-arm64": "^16.4.6",
     "clsx": "^2.1.1",
-    "firebase": "^13.3.0",
+    "firebase": "^11.4.0",
     "lucide-react": "^1.73.0",
     "next": "16.4.6",
     "react": "19.3.0",
@@ -19,13 +19,14 @@
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
-    "@firebase/rules-unit-testing": "^5.0.2",
+    "@firebase/rules-unit-testing": "^4.0.1",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
+    "firebase-tools": "^15.36.0",
     "tailwindcss": "4.3.3",
     "typescript": "^5"
   }

@@ -216,3 +216,4 @@ if (!allPassed || !scenariosPassed) {
 } else {
   console.log("\nAll security rule invariants and negative scenarios PASSED successfully.");
 }
+

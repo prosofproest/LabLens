@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from "react";
 import {
   User,
   onAuthStateChanged,
@@ -21,6 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeRoleView, setActiveRoleView] = useState<UserRole>("user");
   const [missingProfile, setMissingProfile] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const previousActualRoleRef = useRef<UserRole | null>(null);
 
   // Computed actual role grounded in Firestore
   const actualRole: UserRole = userProfile?.role ?? "user";
@@ -46,11 +47,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUserProfile(null);
         setActiveRoleView("user");
         setMissingProfile(false);
+        previousActualRoleRef.current = null;
         setLoading(false);
         return;
       }
 
       setUser(firebaseUser);
+      previousActualRoleRef.current = null;
 
       // 2. Attach reactive listener for the authenticated user's profile
       const userDocRef = doc(db, "users", firebaseUser.uid);
@@ -69,13 +72,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
             setUserProfile(profile);
             setMissingProfile(false);
-            // Default active view to user's authentic role
-            setActiveRoleView(profile.role);
+
+            // Default active view to user's authentic role on initial account load,
+            // or when the authentic role in Firestore genuinely changes.
+            if (previousActualRoleRef.current === null || previousActualRoleRef.current !== profile.role) {
+              setActiveRoleView(profile.role);
+              previousActualRoleRef.current = profile.role;
+            }
           } else {
             // Profile document is missing (partial registration failure)
             setUserProfile(null);
             setMissingProfile(true);
             setActiveRoleView("user");
+            previousActualRoleRef.current = null;
           }
           setLoading(false);
         },
@@ -133,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserProfile(null);
     setActiveRoleView("user");
     setMissingProfile(false);
+    previousActualRoleRef.current = null;
   };
 
   const value = {
@@ -160,3 +170,4 @@ export function useAuth() {
   }
   return context;
 }
+

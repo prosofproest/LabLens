@@ -49,3 +49,4 @@ export async function updateUserProfile(
   if (data.department) payload.department = data.department;
   await updateDoc(userRef, payload);
 }
+
