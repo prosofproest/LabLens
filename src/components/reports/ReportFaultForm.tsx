@@ -7,7 +7,7 @@ import { createFaultReport } from "@/lib/firebase/reports";
 import { CAMPUS_LABS, AiSuggestionData } from "@/types";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
-import { ImageUpload } from "@/components/reports/ImageUpload";
+import { ImageUpload, ImageUploadState } from "@/components/reports/ImageUpload";
 import { AlertCircle, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -22,6 +22,11 @@ export function ReportFaultForm() {
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState<string | undefined>(undefined);
   const [imagePublicId, setImagePublicId] = useState<string | undefined>(undefined);
+  const [imageUploadState, setImageUploadState] = useState<ImageUploadState>({
+    isUploading: false,
+    hasError: false,
+    error: null,
+  });
 
   const [loading, setLoading] = useState(false);
   const [submissionStep, setSubmissionStep] = useState<"idle" | "analyzing" | "saving">("idle");
@@ -36,6 +41,18 @@ export function ReportFaultForm() {
 
     if (!user || !userProfile) {
       setError("You must be logged in with a completed user profile to report equipment faults.");
+      return;
+    }
+
+    if (imageUploadState.isUploading) {
+      setError("Please wait for your equipment photo to finish uploading.");
+      return;
+    }
+
+    if (imageUploadState.hasError) {
+      setError(
+        `Equipment photo upload failed (${imageUploadState.error || "upload error"}). Please retry uploading or remove the photo before submitting.`
+      );
       return;
     }
 
@@ -294,6 +311,7 @@ export function ReportFaultForm() {
             setImageUrl(url);
             setImagePublicId(publicId);
           }}
+          onUploadStateChange={setImageUploadState}
           disabled={loading || success}
         />
 
@@ -312,13 +330,18 @@ export function ReportFaultForm() {
           </Link>
           <Button
             type="submit"
-            disabled={loading || success}
+            disabled={loading || success || imageUploadState.isUploading}
             className="min-h-[44px]"
           >
             {loading ? (
               <span className="flex items-center gap-1.5">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 {submissionStep === "analyzing" ? "Consulting Groq AI..." : "Saving Ticket..."}
+              </span>
+            ) : imageUploadState.isUploading ? (
+              <span className="flex items-center gap-1.5">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Uploading Photo...
               </span>
             ) : (
               "Submit Fault Report"

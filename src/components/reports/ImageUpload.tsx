@@ -2,47 +2,65 @@
 
 import React, { useState, useRef, ChangeEvent, DragEvent } from "react";
 import Image from "next/image";
-import { UploadCloud, X, AlertCircle, Loader2 } from "lucide-react";
+import { UploadCloud, X, AlertCircle, Loader2, RotateCw, Trash2 } from "lucide-react";
 import { auth } from "@/lib/firebase/client";
+
+export interface ImageUploadState {
+  isUploading: boolean;
+  hasError: boolean;
+  error: string | null;
+}
 
 interface ImageUploadProps {
   value?: string;
   onChange: (url: string | undefined, publicId?: string) => void;
+  onUploadStateChange?: (state: ImageUploadState) => void;
   disabled?: boolean;
 }
 
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
-export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
+export function ImageUpload({ value, onChange, onUploadStateChange, disabled }: ImageUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = async (file: File) => {
+    setPendingFile(file);
     setError(null);
+    onUploadStateChange?.({ isUploading: false, hasError: false, error: null });
 
     // Validate type
     if (!ACCEPTED_TYPES.includes(file.type.toLowerCase())) {
-      setError("Please select a valid image (JPEG, PNG, WEBP, or GIF).");
+      const msg = "Please select a valid image (JPEG, PNG, WEBP, or GIF).";
+      setError(msg);
+      onUploadStateChange?.({ isUploading: false, hasError: true, error: msg });
       return;
     }
 
     // Validate size
     if (file.size > MAX_SIZE_BYTES) {
-      setError(`Image exceeds 5MB limit (${(file.size / (1024 * 1024)).toFixed(1)}MB).`);
+      const msg = `Image exceeds 5MB limit (${(file.size / (1024 * 1024)).toFixed(1)}MB).`;
+      setError(msg);
+      onUploadStateChange?.({ isUploading: false, hasError: true, error: msg });
       return;
     }
 
     const currentUser = auth.currentUser;
     if (!currentUser) {
-      setError("Authentication required. Please log in before uploading photos.");
+      const msg = "Authentication required. Please log in before uploading photos.";
+      setError(msg);
+      onUploadStateChange?.({ isUploading: false, hasError: true, error: msg });
       return;
     }
 
     try {
       setUploading(true);
+      onUploadStateChange?.({ isUploading: true, hasError: false, error: null });
+
       const idToken = await currentUser.getIdToken();
 
       const formData = new FormData();
@@ -62,10 +80,14 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
         throw new Error(data.error || "Failed to upload image.");
       }
 
+      setPendingFile(null);
+      setError(null);
+      onUploadStateChange?.({ isUploading: false, hasError: false, error: null });
       onChange(data.url, data.publicId);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Media upload failed.";
       setError(message);
+      onUploadStateChange?.({ isUploading: false, hasError: true, error: message });
     } finally {
       setUploading(false);
     }
@@ -104,8 +126,10 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
   };
 
   const handleRemove = () => {
-    onChange(undefined, undefined);
+    setPendingFile(null);
     setError(null);
+    onChange(undefined, undefined);
+    onUploadStateChange?.({ isUploading: false, hasError: false, error: null });
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -201,11 +225,43 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
         </div>
       )}
 
-      {/* Error Message */}
+      {/* Error Message with Retry and Remove Actions */}
       {error && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-[#FEF2F2] border border-[#FCA5A5] text-xs text-[#DC2626]">
-          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-          <p className="leading-relaxed">{error}</p>
+        <div className="p-3.5 rounded-2xl bg-[#FEF2F2] border border-[#FCA5A5] space-y-2.5">
+          <div className="flex items-start gap-2 text-xs text-[#DC2626]">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <div className="space-y-0.5 min-w-0">
+              {pendingFile && (
+                <p className="font-semibold truncate">
+                  Upload failed for: {pendingFile.name}
+                </p>
+              )}
+              <p className="leading-relaxed">{error}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-[#FCA5A5]/40">
+            {pendingFile && (
+              <button
+                type="button"
+                onClick={() => handleFile(pendingFile)}
+                disabled={disabled || uploading}
+                className="min-h-[44px] px-3.5 py-1.5 rounded-xl bg-[#DC2626] text-white text-xs font-medium hover:bg-[#B91C1C] transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${uploading ? "animate-spin" : ""}`} />
+                {uploading ? "Retrying..." : "Retry Upload"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleRemove}
+              disabled={disabled || uploading}
+              className="min-h-[44px] px-3.5 py-1.5 rounded-xl border border-[#E5E5EA] bg-white text-xs font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-[#86868B]" />
+              Remove Photo
+            </button>
+          </div>
         </div>
       )}
     </div>
