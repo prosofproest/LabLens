@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { FaultReport, ReportStatus, ReportPriority } from "@/types";
+import { FaultReport, ReportStatus, ReportPriority, EquipmentCategory } from "@/types";
 import { AdminTriageInput } from "@/lib/firebase/reports";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -39,6 +39,15 @@ const ALL_STATUSES: { value: ReportStatus; label: string }[] = [
 ];
 
 const ALL_PRIORITIES: ReportPriority[] = ["Low", "Medium", "High", "Critical"];
+
+const ALL_CATEGORIES: EquipmentCategory[] = [
+  "Hardware",
+  "Software",
+  "Network",
+  "Power/Electrical",
+  "Peripheral",
+  "Other",
+];
 
 const TECHNICIAN_SPECIALIZATION_SUGGESTIONS = [
   "Ramesh Kumar (Hardware Specialist)",
@@ -93,6 +102,9 @@ function AdminTriageModalContent({
 }: AdminTriageModalContentProps) {
   const [status, setStatus] = useState<ReportStatus>(report.status);
   const [priority, setPriority] = useState<ReportPriority>(report.priority);
+  const [category, setCategory] = useState<EquipmentCategory>(
+    report.category || report.aiAnalysis?.suggestedCategory || "Other"
+  );
   const [assignedTechnician, setAssignedTechnician] = useState(report.assignedTechnician || "");
   const [adminNotes, setAdminNotes] = useState(report.adminNotes || "");
   const [isSaving, setIsSaving] = useState(false);
@@ -105,11 +117,30 @@ function AdminTriageModalContent({
     setActionError(null);
     try {
       setIsSaving(true);
+
+      const trimmedTech = assignedTechnician.trim();
+      const previousTech = report.assignedTechnician?.trim() || "";
+
+      let finalAssignedAt: string | null = null;
+      if (trimmedTech) {
+        if (previousTech && previousTech === trimmedTech) {
+          // Technician unchanged: preserve existing timestamp
+          finalAssignedAt = report.assignedAt || new Date().toISOString();
+        } else {
+          // Fresh assignment or reassignment: set fresh timestamp
+          finalAssignedAt = new Date().toISOString();
+        }
+      } else {
+        // Technician cleared: null
+        finalAssignedAt = null;
+      }
+
       await onSaveTriage(report.id, {
         status,
         priority,
-        assignedTechnician: assignedTechnician.trim() || null,
-        assignedAt: assignedTechnician.trim() ? report.assignedAt || new Date().toISOString() : null,
+        category,
+        assignedTechnician: trimmedTech || null,
+        assignedAt: finalAssignedAt,
         adminNotes: adminNotes.trim() || null,
       });
       onClose();
@@ -350,6 +381,37 @@ function AdminTriageModalContent({
                 <Badge variant={getPriorityVariant(priority)} size="sm">
                   {priority}
                 </Badge>
+              </div>
+            </div>
+
+            {/* Operational Equipment Category Override */}
+            <div className="space-y-1.5 sm:col-span-2">
+              <label htmlFor="triage-category" className="block text-xs font-semibold text-[#1D1D1F]">
+                Operational Equipment Category
+              </label>
+              <select
+                id="triage-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as EquipmentCategory)}
+                disabled={isSaving || isDeleting}
+                className="w-full min-h-[44px] px-3 py-2 text-xs bg-white border border-[#E5E5EA] rounded-xl focus:border-[#0071E3] focus:ring-2 focus:ring-[#0071E3]/15 text-[#1D1D1F] font-medium"
+              >
+                {ALL_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px]">
+                <span className="text-[#86868B]">Original AI Recommendation:</span>
+                <span className="font-medium text-[#0071E3]">
+                  {report.aiAnalysis?.suggestedCategory || "Not specified"}
+                </span>
+                {report.aiAnalysis?.suggestedCategory && category !== report.aiAnalysis.suggestedCategory && (
+                  <Badge variant="warning" size="sm" className="ml-1 text-[10px] py-0 px-1.5">
+                    Category Overridden
+                  </Badge>
+                )}
               </div>
             </div>
           </div>

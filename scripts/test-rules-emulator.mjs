@@ -563,6 +563,61 @@ async function runTests() {
     )
   );
 
+  // R_P7. Verified admin can update report category to an approved category
+  await assertSucceeds(
+    "Report Positive 7: Verified admin can update report category to an approved category",
+    updateDoc(
+      "reports",
+      "report_user_b",
+      {
+        category: "Power/Electrical",
+      },
+      ["category"],
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
+  // R_N11. Admin cannot set an invalid category
+  await assertFails(
+    "Report Negative 11: Admin cannot set an invalid category",
+    updateDoc(
+      "reports",
+      "report_user_b",
+      {
+        category: "NuclearHazard",
+      },
+      ["category"],
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
+  // R_N12. Admin cannot tamper with aiAnalysis during administrative update
+  await assertFails(
+    "Report Negative 12: Admin cannot overwrite immutable aiAnalysis during administrative update",
+    updateDoc(
+      "reports",
+      "report_user_b",
+      {
+        category: "Hardware",
+        aiAnalysis: {
+          isAiGenerated: true,
+          status: "success",
+          suggestedCategory: "Hardware",
+          suggestedPriority: "Low",
+          executiveSummary: "Tampered executive summary",
+          possibleRootCause: "Tampered root cause",
+          recommendedAction: "Tampered action",
+          analyzedAt: new Date().toISOString(),
+        },
+      },
+      ["category", "aiAnalysis"],
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
   const passed = results.filter(r => r.pass).length;
   console.log(`\n==============================================`);
   console.log(`EMULATOR TEST SUMMARY: ${passed}/${results.length} PASSED`);

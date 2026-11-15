@@ -25,6 +25,7 @@ service cloud.firestore {
     //   - description: string (required, 5-2000 chars) - Fault symptom details
     //   - status: string (required, 'Reported' on create) - Lifecycle status
     //   - priority: string (required, 'Low'|'Medium'|'High'|'Critical') - Triage urgency
+    //   - category: string (optional, approved category list) - Fault/equipment category
     //   - createdAt: timestamp (required, immutable) - Submission timestamp
     //   - updatedAt: timestamp (required) - Last modified timestamp
     //   - reportedBy: map (required) - Submitter identity details
@@ -76,6 +77,10 @@ service cloud.firestore {
       return priority in ['Low', 'Medium', 'High', 'Critical'];
     }
 
+    function isValidCategory(cat) {
+      return cat in ['Hardware', 'Software', 'Network', 'Power/Electrical', 'Peripheral', 'Other'];
+    }
+
     function isValidAiAnalysis(ai) {
       return ai is map
         && ai.keys().hasAll([
@@ -88,7 +93,7 @@ service cloud.firestore {
         ])
         && ai.isAiGenerated is bool
         && ai.status in ['success', 'unavailable', 'skipped']
-        && ai.suggestedCategory in ['Hardware', 'Software', 'Network', 'Power/Electrical', 'Peripheral', 'Other']
+        && isValidCategory(ai.suggestedCategory)
         && isValidPriority(ai.suggestedPriority)
         && ai.executiveSummary is string && ai.executiveSummary.size() <= 1000
         && ai.possibleRootCause is string && ai.possibleRootCause.size() <= 1000
@@ -114,7 +119,7 @@ service cloud.firestore {
         ])
         && data.keys().hasOnly([
           'equipmentName', 'assetId', 'labName', 'description', 'status',
-          'priority', 'createdAt', 'updatedAt', 'reportedBy', 'imageUrl',
+          'priority', 'category', 'createdAt', 'updatedAt', 'reportedBy', 'imageUrl',
           'imagePublicId', 'aiAnalysis', 'assignedTechnician', 'assignedAt', 'adminNotes'
         ])
         && data.equipmentName is string && data.equipmentName.size() >= 2 && data.equipmentName.size() <= 100
@@ -123,6 +128,7 @@ service cloud.firestore {
         && data.description is string && data.description.size() >= 5 && data.description.size() <= 2000
         && data.status == 'Reported'
         && isValidPriority(data.priority)
+        && (!('category' in data) || isValidCategory(data.category))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp
         && isValidReporter(data.reportedBy)
@@ -137,10 +143,11 @@ service cloud.firestore {
     function isValidAdminReportUpdate() {
       return isAdmin()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status', 'priority', 'assignedTechnician', 'assignedAt', 'adminNotes', 'updatedAt'
+          'status', 'priority', 'category', 'assignedTechnician', 'assignedAt', 'adminNotes', 'updatedAt'
         ])
         && isValidStatus(request.resource.data.status)
         && isValidPriority(request.resource.data.priority)
+        && (!('category' in request.resource.data) || isValidCategory(request.resource.data.category))
         && (request.resource.data.assignedTechnician == null || (request.resource.data.assignedTechnician is string && request.resource.data.assignedTechnician.size() <= 100))
         && (request.resource.data.assignedAt == null || request.resource.data.assignedAt is string || request.resource.data.assignedAt is timestamp)
         && (request.resource.data.adminNotes == null || (request.resource.data.adminNotes is string && request.resource.data.adminNotes.size() <= 1000))

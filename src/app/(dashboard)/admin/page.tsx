@@ -52,8 +52,9 @@ const ALL_PRIORITY_OPTIONS: { value: string; label: string }[] = [
 export default function AdminDashboardPage() {
   const { userProfile, actualRole, activeRoleView, setActiveRoleView } = useAuth();
 
-  // Strict authorization vs. preview separation
-  const isLiveAdmin = actualRole === "admin";
+  // Strict authorization vs. preview separation:
+  // Live admin requires BOTH actual admin role in Firestore AND active admin view.
+  const isLiveAdmin = actualRole === "admin" && activeRoleView === "admin";
   const isPreview = !isLiveAdmin && activeRoleView === "admin";
   const isAuthorized = isLiveAdmin || isPreview;
 
@@ -187,8 +188,9 @@ export default function AdminDashboardPage() {
                   ...r,
                   status: update.status,
                   priority: update.priority,
+                  category: update.category,
                   assignedTechnician: update.assignedTechnician || null,
-                  assignedAt: update.assignedAt || (update.assignedTechnician ? new Date().toISOString() : null),
+                  assignedAt: update.assignedAt ?? null,
                   adminNotes: update.adminNotes || null,
                   updatedAt: new Date().toISOString(),
                 }

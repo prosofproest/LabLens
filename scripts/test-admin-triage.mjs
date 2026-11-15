@@ -228,6 +228,107 @@ function run() {
     mockState.length === 6 && !mockState.find((r) => r.id === "rep-7")
   );
 
+  // Test 7: Category Override & AI Suggestion Preservation
+  const repWithAi = {
+    id: "rep-ai",
+    equipmentName: "Keysight InfiniiVision DSOX1204G",
+    category: undefined,
+    aiAnalysis: {
+      suggestedCategory: "Hardware",
+      suggestedPriority: "Medium",
+    },
+  };
+  // Fallback order: report.category || report.aiAnalysis?.suggestedCategory || "Other"
+  const initialCategory = repWithAi.category || repWithAi.aiAnalysis?.suggestedCategory || "Other";
+  assert(
+    "Test 7a: Initial category selection falls back correctly to aiAnalysis.suggestedCategory",
+    initialCategory === "Hardware"
+  );
+
+  // Admin overrides category to Power/Electrical
+  const adminCategoryOverride = "Power/Electrical";
+  const updatedRepWithAi = {
+    ...repWithAi,
+    category: adminCategoryOverride,
+  };
+  assert(
+    "Test 7b: Category override updates operational category",
+    updatedRepWithAi.category === "Power/Electrical"
+  );
+  assert(
+    "Test 7c: Category override preserves original aiAnalysis.suggestedCategory untampered",
+    updatedRepWithAi.aiAnalysis.suggestedCategory === "Hardware"
+  );
+
+  // Test 8: Technician Reassignment Timestamp Logic
+  function computeTechnicianAssignment(currentTech, currentAssignedAt, nextTechInput) {
+    const trimmedNext = nextTechInput?.trim() || null;
+    let assignedTechnician = trimmedNext;
+    let assignedAt = null;
+
+    if (trimmedNext) {
+      if (trimmedNext !== (currentTech || null)) {
+        assignedAt = "NEW_TIMESTAMP"; // fresh timestamp
+      } else {
+        assignedAt = currentAssignedAt || "PRESERVED_FALLBACK";
+      }
+    } else {
+      assignedTechnician = null;
+      assignedAt = null;
+    }
+    return { assignedTechnician, assignedAt };
+  }
+
+  // 8a: Initial assignment to new technician
+  const assignNew = computeTechnicianAssignment(null, null, "Priya Sharma");
+  assert(
+    "Test 8a: Initial technician assignment creates new assignedAt timestamp",
+    assignNew.assignedTechnician === "Priya Sharma" && assignNew.assignedAt === "NEW_TIMESTAMP"
+  );
+
+  // 8b: Reassignment from one tech to another creates a FRESH timestamp
+  const reassignNew = computeTechnicianAssignment("Priya Sharma", "OLD_TIMESTAMP", "Ramesh Kumar");
+  assert(
+    "Test 8b: Reassignment to different technician creates fresh assignedAt timestamp",
+    reassignNew.assignedTechnician === "Ramesh Kumar" && reassignNew.assignedAt === "NEW_TIMESTAMP"
+  );
+
+  // 8c: Preserving existing technician keeps existing assignedAt timestamp
+  const preserveTech = computeTechnicianAssignment("Priya Sharma", "2026-03-01T10:00:00Z", "Priya Sharma");
+  assert(
+    "Test 8c: Keeping existing technician preserves original assignedAt timestamp",
+    preserveTech.assignedTechnician === "Priya Sharma" && preserveTech.assignedAt === "2026-03-01T10:00:00Z"
+  );
+
+  // 8d: Clearing technician clears both assignedTechnician and assignedAt to null
+  const clearTech = computeTechnicianAssignment("Priya Sharma", "2026-03-01T10:00:00Z", "");
+  assert(
+    "Test 8d: Clearing technician sets both assignedTechnician and assignedAt to null",
+    clearTech.assignedTechnician === null && clearTech.assignedAt === null
+  );
+
+  // Test 9: Dual-condition Live Listener Lifecycle Rule
+  function evaluateIsLiveAdmin(actualRole, activeRoleView) {
+    return actualRole === "admin" && activeRoleView === "admin";
+  }
+
+  assert(
+    "Test 9a: Verified admin in Admin View activates live listener",
+    evaluateIsLiveAdmin("admin", "admin") === true
+  );
+  assert(
+    "Test 9b: Verified admin in User View deactivates live listener",
+    evaluateIsLiveAdmin("admin", "user") === false
+  );
+  assert(
+    "Test 9c: Standard user in Admin Preview never activates live listener",
+    evaluateIsLiveAdmin("user", "admin") === false
+  );
+  assert(
+    "Test 9d: Standard user in User View never activates live listener",
+    evaluateIsLiveAdmin("user", "user") === false
+  );
+
   const passed = tests.filter((t) => t.pass).length;
   console.log(`\n==============================================`);
   console.log(`ADMIN TRIAGE SUITE SUMMARY: ${passed}/${tests.length} PASSED`);
@@ -239,3 +340,4 @@ function run() {
 }
 
 run();
+

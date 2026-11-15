@@ -14,7 +14,7 @@ import {
   DocumentData,
 } from "firebase/firestore";
 import { db } from "./client";
-import { CreateReportInput, FaultReport, ReportStatus, ReportPriority } from "@/types";
+import { CreateReportInput, FaultReport, ReportStatus, ReportPriority, EquipmentCategory } from "@/types";
 
 /**
  * Normalizes Firestore document snapshot into typed FaultReport
@@ -48,6 +48,7 @@ function mapDocToFaultReport(id: string, data: DocumentData): FaultReport {
     },
     status: (data.status as ReportStatus) || "Reported",
     priority: (data.priority as ReportPriority) || "Medium",
+    category: (data.category as EquipmentCategory) || undefined,
     aiAnalysis: data.aiAnalysis || null,
     assignedTechnician: data.assignedTechnician || null,
     assignedAt: data.assignedAt || null,
@@ -168,6 +169,7 @@ export async function getReportById(reportId: string): Promise<FaultReport | nul
 export interface AdminTriageInput {
   status: ReportStatus;
   priority: ReportPriority;
+  category?: EquipmentCategory;
   assignedTechnician?: string | null;
   assignedAt?: string | null;
   adminNotes?: string | null;
@@ -216,10 +218,14 @@ export async function updateReportAdminTriage(
     status: update.status,
     priority: update.priority,
     assignedTechnician: update.assignedTechnician ? update.assignedTechnician.trim() : null,
-    assignedAt: update.assignedAt || (update.assignedTechnician ? new Date().toISOString() : null),
+    assignedAt: update.assignedAt !== undefined ? update.assignedAt : (update.assignedTechnician ? new Date().toISOString() : null),
     adminNotes: update.adminNotes ? update.adminNotes.trim() : null,
     updatedAt: serverTimestamp(),
   };
+
+  if (update.category) {
+    payload.category = update.category;
+  }
 
   await updateDoc(docRef, payload);
 }

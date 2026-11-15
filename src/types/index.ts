@@ -83,6 +83,7 @@ export interface FaultReport {
   };
   status: ReportStatus;
   priority: ReportPriority;
+  category?: EquipmentCategory;
   aiAnalysis: AiSuggestionData | null;
   assignedTechnician: string | null;
   assignedAt: string | null;
