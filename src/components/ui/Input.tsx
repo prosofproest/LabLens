@@ -2,23 +2,25 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+  label?: string;
   error?: string;
   helperText?: string;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, helperText, id, ...props }, ref) => {
-    const inputId = id || `input-${label.toLowerCase().replace(/\s+/g, "-")}`;
+    const inputId = id || (label ? `input-${label.toLowerCase().replace(/\s+/g, "-")}` : undefined);
 
     return (
       <div className="space-y-1.5 w-full text-left">
-        <label
-          htmlFor={inputId}
-          className="block text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider"
-        >
-          {label}
-        </label>
+        {label && (
+          <label
+            htmlFor={inputId}
+            className="block text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider"
+          >
+            {label}
+          </label>
+        )}
         <input
           ref={ref}
           id={inputId}

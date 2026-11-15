@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Menu, X, ShieldAlert, LogOut, LayoutDashboard } from "lucide-react";
+import { Menu, X, ShieldAlert, LogOut, LayoutDashboard, PlusCircle } from "lucide-react";
 import { buttonStyles } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { useAuth } from "@/context/AuthContext";
@@ -66,6 +66,14 @@ export function Navbar() {
                   actualRole={actualRole}
                   onSelectRole={setActiveRoleView}
                 />
+
+                <Link
+                  href="/report"
+                  className={buttonStyles({ variant: "primary", size: "sm" })}
+                >
+                  <PlusCircle className="w-3.5 h-3.5 mr-1" />
+                  Report Fault
+                </Link>
 
                 <Link
                   href={dashboardHref}
@@ -174,10 +182,22 @@ export function Navbar() {
             {user ? (
               <>
                 <Link
-                  href={dashboardHref}
+                  href="/report"
                   onClick={() => setMobileMenuOpen(false)}
                   className={buttonStyles({
                     variant: "primary",
+                    size: "md",
+                    className: "w-full",
+                  })}
+                >
+                  <PlusCircle className="w-4 h-4 mr-2" />
+                  Report Fault
+                </Link>
+                <Link
+                  href={dashboardHref}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={buttonStyles({
+                    variant: "outline",
                     size: "md",
                     className: "w-full",
                   })}

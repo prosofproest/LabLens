@@ -21,11 +21,13 @@ function authHeader(uid, email) {
   return { Authorization: `Bearer ${token}` };
 }
 
-// Convert plain JS object to Firestore REST document fields
+// Convert plain JS object to Firestore REST document fields (handles primitives, maps, nulls, dates)
 function toFirestoreFields(obj) {
   const fields = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === "string") {
+    if (value === null) {
+      fields[key] = { nullValue: null };
+    } else if (typeof value === "string") {
       fields[key] = { stringValue: value };
     } else if (typeof value === "number") {
       fields[key] = { integerValue: String(value) };
@@ -33,6 +35,8 @@ function toFirestoreFields(obj) {
       fields[key] = { booleanValue: value };
     } else if (value instanceof Date) {
       fields[key] = { timestampValue: value.toISOString() };
+    } else if (typeof value === "object" && !Array.isArray(value)) {
+      fields[key] = { mapValue: { fields: toFirestoreFields(value) } };
     }
   }
   return fields;
@@ -84,6 +88,17 @@ async function updateDoc(collection, docId, data, updateMask, uid, email) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ fields: toFirestoreFields(data) }),
+  });
+  return res;
+}
+
+async function deleteDoc(collection, docId, uid, email) {
+  const url = `${BASE}/${collection}/${docId}`;
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      ...authHeader(uid, email),
+    },
   });
   return res;
 }
@@ -144,16 +159,40 @@ async function runTests() {
     createdAt: new Date("2026-01-01T00:00:00Z"),
   });
 
-  // ==================== NEGATIVE TESTS ====================
-  console.log("--- Negative Security Tests ---");
+  // Seed a report owned by user_b
+  await seedDoc("reports", "report_user_b", {
+    equipmentName: "Oscilloscope Rig B",
+    assetId: "LAB-ECE-012",
+    labName: "VLSI & Digital Circuits Lab (Room 214)",
+    description: "Channel 2 input voltage reading floating randomly.",
+    imageUrl: null,
+    imagePublicId: null,
+    reportedBy: {
+      uid: "user_b",
+      name: "User B Student",
+      email: "user_b@college.edu",
+      department: "Information Technology",
+    },
+    status: "Reported",
+    priority: "Medium",
+    aiAnalysis: null,
+    assignedTechnician: null,
+    assignedAt: null,
+    adminNotes: null,
+    createdAt: new Date("2026-01-02T00:00:00Z"),
+    updatedAt: new Date("2026-01-02T00:00:00Z"),
+  });
 
-  // 1a. Unauthenticated user cannot read protected user profiles
+  // ==================== USERS COLLECTION TESTS ====================
+  console.log("--- Users Collection Security Tests ---");
+
+  // N1a. Unauthenticated user cannot read protected user profiles
   await assertFails(
     "Negative 1a: Unauthenticated user cannot read protected user profiles",
     getDoc("users", "user_b", null, null)
   );
 
-  // 1b. Unauthenticated user cannot write protected user profiles
+  // N1b. Unauthenticated user cannot write protected user profiles
   await assertFails(
     "Negative 1b: Unauthenticated user cannot write protected user profiles",
     createDoc("users", "unauth_user", {
@@ -166,43 +205,43 @@ async function runTests() {
     }, null, null)
   );
 
-  // 2. User A cannot read User B's profile
+  // N2. User A cannot read User B's profile
   await assertFails(
     "Negative 2: User A cannot read User B's profile",
     getDoc("users", "user_b", "user_a", "user_a@college.edu")
   );
 
-  // 3. User A cannot update User B's profile
+  // N3. User A cannot update User B's profile
   await assertFails(
     "Negative 3: User A cannot update User B's profile",
     updateDoc("users", "user_b", { name: "Tampered Name" }, ["name"], "user_a", "user_a@college.edu")
   );
 
-  // 4. Regular user cannot promote themselves to admin
+  // N4. Regular user cannot promote themselves to admin
   await assertFails(
     "Negative 4: Regular user cannot promote themselves to admin",
     updateDoc("users", "user_a", { role: "admin" }, ["role"], "user_a", "user_a@college.edu")
   );
 
-  // 5a. Regular user cannot modify their UID
+  // N5a. Regular user cannot modify their UID
   await assertFails(
     "Negative 5a: Regular user cannot modify their UID",
     updateDoc("users", "user_a", { uid: "other_uid" }, ["uid"], "user_a", "user_a@college.edu")
   );
 
-  // 5b. Regular user cannot modify their email
+  // N5b. Regular user cannot modify their email
   await assertFails(
     "Negative 5b: Regular user cannot modify their email",
     updateDoc("users", "user_a", { email: "attacker@domain.com" }, ["email"], "user_a", "user_a@college.edu")
   );
 
-  // 5c. Regular user cannot modify their createdAt
+  // N5c. Regular user cannot modify their createdAt
   await assertFails(
     "Negative 5c: Regular user cannot modify their createdAt",
     updateDoc("users", "user_a", { createdAt: new Date("1999-01-01T00:00:00Z") }, ["createdAt"], "user_a", "user_a@college.edu")
   );
 
-  // 6. Invalid department values are rejected
+  // N6. Invalid department values are rejected
   await assertFails(
     "Negative 6: Invalid department values are rejected during registration",
     createDoc("users", "user_invalid_dept", {
@@ -215,7 +254,7 @@ async function runTests() {
     }, "user_invalid_dept", "invalid@college.edu")
   );
 
-  // 7. Public registration cannot create an admin profile
+  // N7. Public registration cannot create an admin profile
   await assertFails(
     "Negative 7: Public registration cannot create an admin profile",
     createDoc("users", "attacker_admin", {
@@ -228,10 +267,7 @@ async function runTests() {
     }, "attacker_admin", "malicious@college.edu")
   );
 
-  // ==================== POSITIVE TESTS ====================
-  console.log("\n--- Positive Security Tests ---");
-
-  // 1. Authenticated user can create their own valid user profile
+  // P1. Authenticated user can create their own valid user profile
   await assertSucceeds(
     "Positive 1: Authenticated user can create their own valid user profile",
     createDoc("users", "new_valid_student", {
@@ -244,7 +280,7 @@ async function runTests() {
     }, "new_valid_student", "valid@college.edu")
   );
 
-  // 2. User can update their own name and department
+  // P2. User can update their own name and department
   await assertSucceeds(
     "Positive 2: User can update their own name and valid department",
     updateDoc(
@@ -260,16 +296,187 @@ async function runTests() {
     )
   );
 
-  // 3. Verified admin can read other user profiles
+  // P3. Verified admin can read other user profiles
   await assertSucceeds(
     "Positive 3: Verified admin can read other user profiles",
     getDoc("users", "user_b", "admin_user", "admin@college.edu")
   );
 
-  // 4. Verified admin can perform permitted administrative operations (promote user to admin)
+  // P4. Verified admin can perform permitted administrative operations
   await assertSucceeds(
     "Positive 4: Verified admin can update user role or administrative fields",
     updateDoc("users", "user_b", { role: "admin" }, ["role"], "admin_user", "admin@college.edu")
+  );
+
+  // ==================== REPORTS COLLECTION TESTS ====================
+  console.log("\n--- Reports Collection Security Tests ---");
+
+  // R_N1. Unauthenticated user cannot create reports
+  await assertFails(
+    "Report Negative 1: Unauthenticated user cannot create reports",
+    createDoc("reports", "unauth_report", {
+      equipmentName: "Dell Precision 3640",
+      assetId: "LAB-CS-101",
+      labName: "Advanced Computing Lab (Room 304)",
+      description: "Boot drive failed S.M.A.R.T. self-test.",
+      imageUrl: null,
+      imagePublicId: null,
+      reportedBy: { uid: "user_a", name: "User A", email: "user_a@college.edu" },
+      status: "Reported",
+      priority: "Medium",
+      aiAnalysis: null,
+      assignedTechnician: null,
+      assignedAt: null,
+      adminNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, null, null)
+  );
+
+  // R_N2. User A cannot spoof reportedBy.uid as User B
+  await assertFails(
+    "Report Negative 2: User A cannot spoof reportedBy.uid as User B",
+    createDoc("reports", "spoofed_report", {
+      equipmentName: "Dell Precision 3640",
+      assetId: "LAB-CS-101",
+      labName: "Advanced Computing Lab (Room 304)",
+      description: "Boot drive failed S.M.A.R.T. self-test.",
+      imageUrl: null,
+      imagePublicId: null,
+      reportedBy: { uid: "user_b", name: "User B", email: "user_b@college.edu" },
+      status: "Reported",
+      priority: "Medium",
+      aiAnalysis: null,
+      assignedTechnician: null,
+      assignedAt: null,
+      adminNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, "user_a", "user_a@college.edu")
+  );
+
+  // R_N3. User cannot create report with initial status 'Resolved'
+  await assertFails(
+    "Report Negative 3: User cannot create report with initial status 'Resolved'",
+    createDoc("reports", "premature_resolved", {
+      equipmentName: "Dell Precision 3640",
+      assetId: "LAB-CS-101",
+      labName: "Advanced Computing Lab (Room 304)",
+      description: "Boot drive failed S.M.A.R.T. self-test.",
+      imageUrl: null,
+      imagePublicId: null,
+      reportedBy: { uid: "user_a", name: "User A", email: "user_a@college.edu" },
+      status: "Resolved",
+      priority: "Medium",
+      aiAnalysis: null,
+      assignedTechnician: null,
+      assignedAt: null,
+      adminNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, "user_a", "user_a@college.edu")
+  );
+
+  // R_N4. User cannot inject pre-filled administrative notes on creation
+  await assertFails(
+    "Report Negative 4: User cannot inject pre-filled administrative notes on creation",
+    createDoc("reports", "hacked_notes", {
+      equipmentName: "Dell Precision 3640",
+      assetId: "LAB-CS-101",
+      labName: "Advanced Computing Lab (Room 304)",
+      description: "Boot drive failed S.M.A.R.T. self-test.",
+      imageUrl: null,
+      imagePublicId: null,
+      reportedBy: { uid: "user_a", name: "User A", email: "user_a@college.edu" },
+      status: "Reported",
+      priority: "Medium",
+      aiAnalysis: null,
+      assignedTechnician: "Ramesh",
+      assignedAt: new Date(),
+      adminNotes: "Dispatched without review",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, "user_a", "user_a@college.edu")
+  );
+
+  // R_N5. User A cannot read User B's report
+  await assertFails(
+    "Report Negative 5: User A cannot read User B's report",
+    getDoc("reports", "report_user_b", "user_a", "user_a@college.edu")
+  );
+
+  // R_N6. Normal user cannot update reports directly
+  await assertFails(
+    "Report Negative 6: Normal user cannot update reports directly",
+    updateDoc("reports", "report_user_b", { status: "Resolved" }, ["status"], "user_a", "user_a@college.edu")
+  );
+
+  // R_N7. Normal user cannot delete reports
+  await assertFails(
+    "Report Negative 7: Normal user cannot delete reports",
+    deleteDoc("reports", "report_user_b", "user_a", "user_a@college.edu")
+  );
+
+  // R_P1. Authenticated user can create their own valid report
+  await assertSucceeds(
+    "Report Positive 1: Authenticated user can create their own valid report",
+    createDoc("reports", "valid_report_user_a", {
+      equipmentName: "Dell Precision 3640",
+      assetId: "LAB-CS-101",
+      labName: "Advanced Computing Lab (Room 304)",
+      description: "Boot drive failed S.M.A.R.T. self-test with error code 0x8004.",
+      imageUrl: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+      imagePublicId: "sample_id_123",
+      reportedBy: {
+        uid: "user_a",
+        name: "User A Student",
+        email: "user_a@college.edu",
+        department: "Computer Science & Engineering",
+      },
+      status: "Reported",
+      priority: "High",
+      aiAnalysis: null,
+      assignedTechnician: null,
+      assignedAt: null,
+      adminNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, "user_a", "user_a@college.edu")
+  );
+
+  // R_P2. Authenticated user can read their own report
+  await assertSucceeds(
+    "Report Positive 2: Authenticated user can read their own report",
+    getDoc("reports", "valid_report_user_a", "user_a", "user_a@college.edu")
+  );
+
+  // R_P3. Verified admin can read other users' reports
+  await assertSucceeds(
+    "Report Positive 3: Verified admin can read other users' reports",
+    getDoc("reports", "report_user_b", "admin_user", "admin@college.edu")
+  );
+
+  // R_P4. Verified admin can update report status and technician assignment
+  await assertSucceeds(
+    "Report Positive 4: Verified admin can update report status and technician assignment",
+    updateDoc(
+      "reports",
+      "report_user_b",
+      {
+        status: "In-Progress",
+        assignedTechnician: "Suresh Tech",
+        adminNotes: "Dispatched replacement probe to Room 214.",
+      },
+      ["status", "assignedTechnician", "adminNotes"],
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
+  // R_P5. Verified admin can delete a report
+  await assertSucceeds(
+    "Report Positive 5: Verified admin can delete a report",
+    deleteDoc("reports", "valid_report_user_a", "admin_user", "admin@college.edu")
   );
 
   const passed = results.filter(r => r.pass).length;

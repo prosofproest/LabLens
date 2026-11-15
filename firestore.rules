@@ -2,6 +2,45 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches request.auth.uid)
+    // Fields:
+    //   - uid: string (required, immutable) - Firebase Auth UID
+    //   - name: string (required, 2-80 chars) - User's full name
+    //   - email: string (required, immutable) - User's email
+    //   - role: string (required, 'user' or 'admin', immutable by user)
+    //   - department: string (required, approved list) - College department
+    //   - createdAt: timestamp (required, immutable) - Profile creation time
+    //
+    // Collection: reports
+    // Document ID: {reportId} (auto-generated)
+    // Fields:
+    //   - equipmentName: string (required, 2-100 chars) - Name of faulty equipment
+    //   - assetId: string (required, 2-50 chars) - College asset tag / hardware ID
+    //   - labName: string (required, 2-100 chars) - Laboratory name/room
+    //   - description: string (required, 5-2000 chars) - Fault symptom details
+    //   - status: string (required, 'Reported' on create) - Lifecycle status
+    //   - priority: string (required, 'Low'|'Medium'|'High'|'Critical') - Triage urgency
+    //   - createdAt: timestamp (required, immutable) - Submission timestamp
+    //   - updatedAt: timestamp (required) - Last modified timestamp
+    //   - reportedBy: map (required) - Submitter identity details
+    //     - uid: string (required, matches request.auth.uid)
+    //     - name: string (required, 2-100 chars)
+    //     - email: string (required, 3-100 chars)
+    //     - department: string (optional, <= 100 chars)
+    //   - imageUrl: string or null (max 2048 chars) - Cloudinary image URL
+    //   - imagePublicId: string or null (max 255 chars) - Cloudinary public ID
+    //   - aiAnalysis: null on creation (managed by AI/admin triage)
+    //   - assignedTechnician: null on creation (assigned by admin)
+    //   - assignedAt: null on creation (timestamp when technician assigned)
+    //   - adminNotes: null on creation (administrative remarks)
+    //
+    // ===============================================================
+
     // Helper functions
     function isAuthenticated() {
       return request.auth != null;
@@ -27,6 +66,48 @@ service cloud.firestore {
         'Civil Engineering',
         'General Sciences & Humanities'
       ];
+    }
+
+    function isValidPriority(priority) {
+      return priority in ['Low', 'Medium', 'High', 'Critical'];
+    }
+
+    function isValidReporter(reporter) {
+      return reporter is map
+        && reporter.keys().hasAll(['uid', 'name', 'email'])
+        && reporter.keys().hasOnly(['uid', 'name', 'email', 'department'])
+        && reporter.uid is string && reporter.uid == request.auth.uid
+        && reporter.name is string && reporter.name.size() >= 2 && reporter.name.size() <= 100
+        && reporter.email is string && reporter.email.size() >= 3 && reporter.email.size() <= 100
+        && (!('department' in reporter) || (reporter.department is string && reporter.department.size() <= 100));
+    }
+
+    function isValidReportCreate(data) {
+      return data.keys().hasAll([
+          'equipmentName', 'assetId', 'labName', 'description', 'status',
+          'priority', 'createdAt', 'updatedAt', 'reportedBy', 'imageUrl',
+          'imagePublicId', 'aiAnalysis', 'assignedTechnician', 'assignedAt', 'adminNotes'
+        ])
+        && data.keys().hasOnly([
+          'equipmentName', 'assetId', 'labName', 'description', 'status',
+          'priority', 'createdAt', 'updatedAt', 'reportedBy', 'imageUrl',
+          'imagePublicId', 'aiAnalysis', 'assignedTechnician', 'assignedAt', 'adminNotes'
+        ])
+        && data.equipmentName is string && data.equipmentName.size() >= 2 && data.equipmentName.size() <= 100
+        && data.assetId is string && data.assetId.size() >= 2 && data.assetId.size() <= 50
+        && data.labName is string && data.labName.size() >= 2 && data.labName.size() <= 100
+        && data.description is string && data.description.size() >= 5 && data.description.size() <= 2000
+        && data.status == 'Reported'
+        && isValidPriority(data.priority)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && isValidReporter(data.reportedBy)
+        && (data.imageUrl == null || (data.imageUrl is string && data.imageUrl.size() <= 2048))
+        && (data.imagePublicId == null || (data.imagePublicId is string && data.imagePublicId.size() <= 255))
+        && data.aiAnalysis == null
+        && data.assignedTechnician == null
+        && data.assignedAt == null
+        && data.adminNotes == null;
     }
 
     // --- USERS COLLECTION ---
@@ -63,6 +144,24 @@ service cloud.firestore {
       // 4. Delete: Admins only
       allow delete: if isAdmin();
     }
+
+    // --- REPORTS COLLECTION ---
+    match /reports/{reportId} {
+      // 1. Read: Any authenticated user can read their own reports; Admins can read any report
+      allow read: if isAuthenticated() && (
+        resource.data.reportedBy.uid == request.auth.uid || isAdmin()
+      );
+
+      // 2. Create: Authenticated users can create reports with strict schema validation
+      allow create: if isAuthenticated()
+        && request.resource.data.reportedBy.uid == request.auth.uid
+        && isValidReportCreate(request.resource.data);
+
+      // 3. Update: Only admins can update reports
+      allow update: if isAdmin();
+
+      // 4. Delete: Only admins can delete reports
+      allow delete: if isAdmin();
+    }
   }
 }
-

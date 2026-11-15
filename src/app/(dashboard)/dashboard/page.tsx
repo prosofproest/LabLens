@@ -1,11 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { subscribeUserReports } from "@/lib/firebase/reports";
+import { FaultReport } from "@/types";
 import { Card, CardHeader, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { buttonStyles } from "@/components/ui/Button";
+import { ReportCard } from "@/components/reports/ReportCard";
+import { ReportDetailModal } from "@/components/reports/ReportDetailModal";
 import {
   User,
   Building2,
@@ -13,10 +17,46 @@ import {
   PlusCircle,
   ClipboardList,
   Sparkles,
+  Loader2,
+  Wrench,
+  CheckCircle2,
 } from "lucide-react";
 
 export default function UserDashboardPage() {
-  const { userProfile, actualRole, setActiveRoleView } = useAuth();
+  const { user, userProfile, actualRole, setActiveRoleView } = useAuth();
+  const [reports, setReports] = useState<FaultReport[]>([]);
+  const [loadingReports, setLoadingReports] = useState(true);
+  const [selectedReport, setSelectedReport] = useState<FaultReport | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    const unsubscribe = subscribeUserReports(
+      user.uid,
+      (fetchedReports) => {
+        setReports(fetchedReports);
+        setLoadingReports(false);
+      },
+      (err) => {
+        console.error("Dashboard reports subscription error:", err);
+        setLoadingReports(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Derived live metrics
+  const totalCount = reports.length;
+  const inRepairCount = reports.filter(
+    (r) =>
+      r.status === "In-Progress" ||
+      r.status === "Assigned" ||
+      r.status === "In-Review"
+  ).length;
+  const resolvedCount = reports.filter((r) => r.status === "Resolved").length;
 
   return (
     <div className="space-y-8">
@@ -62,49 +102,58 @@ export default function UserDashboardPage() {
           )}
 
           <Link
-            href="/#sample-report"
+            href="/report"
             className={buttonStyles({ variant: "primary", size: "sm" })}
           >
             <PlusCircle className="w-4 h-4 mr-1.5" />
-            Report Fault (Demo View)
+            Report Fault
           </Link>
         </div>
       </div>
 
-      {/* Overview Metric Cards */}
+      {/* Overview Metric Cards with Live Counts */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <Card className="p-6 space-y-2">
-          <span className="text-xs font-semibold text-[#86868B] uppercase tracking-wider">
-            My Reported Faults
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#86868B] uppercase tracking-wider">
+              My Reported Faults
+            </span>
+            <ClipboardList className="w-4 h-4 text-[#0071E3]" />
+          </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-semibold text-[#1D1D1F]">0</span>
-            <span className="text-xs text-[#86868B]">Active tickets</span>
+            <span className="text-3xl font-semibold text-[#1D1D1F]">{totalCount}</span>
+            <span className="text-xs text-[#86868B]">Total tickets</span>
           </div>
         </Card>
 
         <Card className="p-6 space-y-2">
-          <span className="text-xs font-semibold text-[#86868B] uppercase tracking-wider">
-            In Repair / In-Progress
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#86868B] uppercase tracking-wider">
+              In Repair / In-Progress
+            </span>
+            <Wrench className="w-4 h-4 text-[#D97706]" />
+          </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-semibold text-[#D97706]">0</span>
-            <span className="text-xs text-[#86868B]">Technician assigned</span>
+            <span className="text-3xl font-semibold text-[#D97706]">{inRepairCount}</span>
+            <span className="text-xs text-[#86868B]">Active repairs</span>
           </div>
         </Card>
 
         <Card className="p-6 space-y-2">
-          <span className="text-xs font-semibold text-[#86868B] uppercase tracking-wider">
-            Resolved Issues
-          </span>
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-[#86868B] uppercase tracking-wider">
+              Resolved Issues
+            </span>
+            <CheckCircle2 className="w-4 h-4 text-[#248A3D]" />
+          </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-3xl font-semibold text-[#248A3D]">0</span>
+            <span className="text-3xl font-semibold text-[#248A3D]">{resolvedCount}</span>
             <span className="text-xs text-[#86868B]">Fully closed</span>
           </div>
         </Card>
       </div>
 
-      {/* Tickets Section with Clean Phase 2 Empty State */}
+      {/* Tickets Section with Live Firestore Data */}
       <Card className="overflow-hidden">
         <CardHeader className="border-b border-[#E5E5EA] bg-[#FAFAFC] py-4 px-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -113,33 +162,67 @@ export default function UserDashboardPage() {
               My Equipment Fault Tickets
             </h2>
           </div>
-          <span className="text-xs text-[#86868B]">
-            Showing tickets created by your account
-          </span>
-        </CardHeader>
-
-        <CardContent className="p-8 text-center space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-center justify-center text-[#86868B] mx-auto">
-            <ClipboardList className="w-6 h-6" />
-          </div>
-          <div className="space-y-1 max-w-sm mx-auto">
-            <h3 className="text-base font-medium text-[#1D1D1F]">
-              No active fault reports
-            </h3>
-            <p className="text-xs text-[#656565] leading-relaxed">
-              When laboratory equipment malfunctions, use the reporting portal to submit tickets and track technician assignments.
-            </p>
-          </div>
-          <div className="pt-2">
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-[#86868B]">
+              {totalCount} {totalCount === 1 ? "ticket" : "tickets"} registered
+            </span>
             <Link
-              href="/#sample-report"
-              className={buttonStyles({ variant: "secondary", size: "sm" })}
+              href="/report"
+              className="text-xs font-medium text-[#0071E3] hover:underline"
             >
-              Explore Sample Report Workflow
+              + New Report
             </Link>
           </div>
+        </CardHeader>
+
+        <CardContent className="p-6">
+          {loadingReports ? (
+            <div className="py-12 flex flex-col items-center justify-center gap-2 text-[#86868B]">
+              <Loader2 className="w-6 h-6 animate-spin text-[#0071E3]" />
+              <p className="text-xs font-medium">Loading your fault reports...</p>
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="p-8 text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-[#F5F5F7] border border-[#E5E5EA] flex items-center justify-center text-[#86868B] mx-auto">
+                <ClipboardList className="w-6 h-6" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-base font-medium text-[#1D1D1F]">
+                  No equipment faults reported yet
+                </h3>
+                <p className="text-xs text-[#656565] leading-relaxed">
+                  When laboratory equipment malfunctions, submit a fault report with optional defect photos to trigger technician dispatch.
+                </p>
+              </div>
+              <div className="pt-2">
+                <Link
+                  href="/report"
+                  className={buttonStyles({ variant: "primary", size: "sm" })}
+                >
+                  <PlusCircle className="w-4 h-4 mr-1.5" />
+                  Submit Your First Fault Report
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reports.map((report) => (
+                <ReportCard
+                  key={report.id}
+                  report={report}
+                  onSelect={(rep) => setSelectedReport(rep)}
+                />
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Detail Modal */}
+      <ReportDetailModal
+        report={selectedReport}
+        onClose={() => setSelectedReport(null)}
+      />
     </div>
   );
 }

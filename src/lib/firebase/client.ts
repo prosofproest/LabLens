@@ -2,6 +2,15 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
+// Verify whether Firebase client credentials are provided via environment variables
+export const isFirebaseConfigured = Boolean(
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID &&
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== "your_api_key_here"
+);
+
+// Fallbacks are strictly used during static prerendering (next build)
+// when environment variables are not supplied at build time.
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyMockKeyForBuildVerification",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "lablens-ai-demo.firebaseapp.com",
@@ -14,4 +23,3 @@ const firebaseConfig = {
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-
