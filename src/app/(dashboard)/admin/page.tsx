@@ -63,6 +63,9 @@ export default function AdminDashboardPage() {
   const [isLoadingLive, setIsLoadingLive] = useState<boolean>(true);
   const [liveError, setLiveError] = useState<string | null>(null);
 
+  // Synchronous loading status: live admin waits for subscription, while preview is instant
+  const isDataLoading = isLiveAdmin && isLoadingLive;
+
   // Role Preview local data state (completely isolated from Firestore)
   const [mockReports, setMockReports] = useState<FaultReport[]>(MOCK_ADMIN_REPORTS);
 
@@ -368,7 +371,7 @@ export default function AdminDashboardPage() {
             Total Tickets
           </span>
           <p className="text-2xl font-bold text-[#1D1D1F]">
-            {isLoadingLive ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.totalReported}
+            {isDataLoading ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.totalReported}
           </p>
           <span className="text-[11px] text-[#656565]">Across all labs</span>
         </Card>
@@ -379,7 +382,7 @@ export default function AdminDashboardPage() {
             Pending Review
           </span>
           <p className="text-2xl font-bold text-[#0071E3]">
-            {isLoadingLive ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.pendingReview}
+            {isDataLoading ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.pendingReview}
           </p>
           <span className="text-[11px] text-[#656565]">Reported & In Review</span>
         </Card>
@@ -390,7 +393,7 @@ export default function AdminDashboardPage() {
             In Progress
           </span>
           <p className="text-2xl font-bold text-[#D97706]">
-            {isLoadingLive ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.inProgress}
+            {isDataLoading ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.inProgress}
           </p>
           <span className="text-[11px] text-[#656565]">Assigned & Under Repair</span>
         </Card>
@@ -401,7 +404,7 @@ export default function AdminDashboardPage() {
             Resolved
           </span>
           <p className="text-2xl font-bold text-[#248A3D]">
-            {isLoadingLive ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.resolved}
+            {isDataLoading ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.resolved}
           </p>
           <span className="text-[11px] text-[#656565]">Verified Operational</span>
         </Card>
@@ -412,7 +415,7 @@ export default function AdminDashboardPage() {
             Critical Severity
           </span>
           <p className="text-2xl font-bold text-[#DC2626]">
-            {isLoadingLive ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.criticalUrgency}
+            {isDataLoading ? <Loader2 className="w-5 h-5 animate-spin text-[#0071E3]" /> : metrics.criticalUrgency}
           </p>
           <span className="text-[11px] text-[#DC2626] font-medium">Critical Priority</span>
         </Card>
@@ -514,7 +517,7 @@ export default function AdminDashboardPage() {
 
         {/* Tickets Feed Content */}
         <CardContent className="p-0">
-          {isLoadingLive ? (
+          {isDataLoading ? (
             <div className="p-12 text-center text-xs text-[#86868B] flex flex-col items-center justify-center gap-2">
               <Loader2 className="w-6 h-6 animate-spin text-[#0071E3]" />
               <p>Synchronizing laboratory tickets from Firestore...</p>

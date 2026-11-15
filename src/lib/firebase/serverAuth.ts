@@ -28,7 +28,7 @@ export async function verifyFirebaseIdToken(token: string): Promise<VerifiedFire
     throw new Error("Missing or empty authentication token.");
   }
 
-  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+  const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || (process.env.FIREBASE_AUTH_EMULATOR_HOST ? "demo-no-project" : undefined);
 
   if (!projectId) {
     throw new Error("Server configuration error: NEXT_PUBLIC_FIREBASE_PROJECT_ID is not configured.");

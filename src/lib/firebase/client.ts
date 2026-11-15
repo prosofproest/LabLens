@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
 // Verify whether Firebase client credentials are provided via environment variables
 export const isFirebaseConfigured = Boolean(
@@ -23,3 +23,14 @@ const firebaseConfig = {
 export const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+
+if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === "true") {
+  // @ts-expect-error Internal tracking flag to prevent re-attaching emulator on HMR
+  if (!window.__FIREBASE_EMULATOR_CONNECTED__) {
+    // @ts-expect-error Internal tracking flag
+    window.__FIREBASE_EMULATOR_CONNECTED__ = true;
+    connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    connectFirestoreEmulator(db, "127.0.0.1", 8080);
+  }
+}
+
