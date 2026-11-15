@@ -13,6 +13,92 @@ interface ChatRequestBody {
   messages: ChatMessageInput[];
 }
 
+/**
+ * Validates that unauthenticated guest requests originate from trusted application origins.
+ * Supports configured production URLs, Vercel deployments, and local development hostnames.
+ */
+export function isTrustedGuestOrigin(req: NextRequest): boolean {
+  const originHeader = req.headers.get("origin")?.trim();
+  const refererHeader = req.headers.get("referer")?.trim();
+
+  let candidateOrigin: string | null = null;
+  if (originHeader) {
+    candidateOrigin = originHeader;
+  } else if (refererHeader) {
+    try {
+      candidateOrigin = new URL(refererHeader).origin;
+    } catch {
+      return false;
+    }
+  } else if (req.headers.get("host")) {
+    const host = req.headers.get("host")!;
+    const proto = req.headers.get("x-forwarded-proto") || "http";
+    candidateOrigin = `${proto}://${host}`;
+  } else if (req.nextUrl?.origin && req.nextUrl.origin !== "null") {
+    candidateOrigin = req.nextUrl.origin;
+  } else if (req.url) {
+    try {
+      candidateOrigin = new URL(req.url).origin;
+    } catch {
+      return false;
+    }
+  }
+
+  // Unauthenticated requests with no identifiable origin are rejected
+  if (!candidateOrigin) {
+    return false;
+  }
+
+  let candidateUrl: URL;
+  try {
+    candidateUrl = new URL(candidateOrigin);
+  } catch {
+    return false;
+  }
+
+  const hostname = candidateUrl.hostname.toLowerCase();
+
+  // 1. Safe local development and test suite origins
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0" ||
+    hostname === "::1"
+  ) {
+    return true;
+  }
+
+  // 2. Configured application origin (NEXT_PUBLIC_APP_URL)
+  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (configuredAppUrl) {
+    try {
+      const appUrl = new URL(configuredAppUrl);
+      if (candidateUrl.origin === appUrl.origin) {
+        return true;
+      }
+    } catch {}
+  }
+
+  // 3. Vercel deployment environments
+  const vercelUrl = process.env.VERCEL_URL?.trim()?.toLowerCase();
+  if (vercelUrl) {
+    if (hostname === vercelUrl || hostname.endsWith(".vercel.app")) {
+      return true;
+    }
+  }
+
+  // 4. Same-origin match against the Host header
+  const hostHeader = req.headers.get("host")?.trim()?.toLowerCase();
+  if (hostHeader) {
+    const hostWithoutPort = hostHeader.split(":")[0];
+    if (hostname === hostWithoutPort) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const SYSTEM_CHAT_PROMPT = `You are LabLens Assistant, an intelligent, safety-conscious academic laboratory assistant for LabLens AI.
 Your role is to guide students, faculty, and lab personnel regarding equipment fault reporting, symptom diagnosis, laboratory procedures, and safety precautions.
 
@@ -66,7 +152,14 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      // Guest client: Rate-limit by client IP
+      // Guest client: Validate origin to block cross-site abuse, then rate-limit by client IP
+      if (!isTrustedGuestOrigin(req)) {
+        return NextResponse.json(
+          { error: "Forbidden: Request origin is not permitted for unauthenticated guest access." },
+          { status: 403 }
+        );
+      }
+
       const clientIp =
         req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
         req.headers.get("x-real-ip") ||
