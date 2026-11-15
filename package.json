@@ -17,12 +17,11 @@
     "test:browser": "firebase emulators:exec --only firestore,auth 'node scripts/run-all-browser-tests.mjs'"
   },
   "dependencies": {
-    "@next/swc-darwin-arm64": "^16.4.6",
     "@upstash/ratelimit": "^2.2.1",
     "@upstash/redis": "^1.41.0",
     "cloudinary": "^2.11.0",
     "clsx": "^2.1.1",
-    "firebase": "^11.4.0",
+    "firebase": "^11.10.0",
     "groq-sdk": "^1.6.0",
     "jose": "^6.2.17",
     "lucide-react": "^1.73.0",
