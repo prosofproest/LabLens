@@ -22,7 +22,7 @@ export function Navbar() {
           {/* Brand Identity */}
           <Link
             href="#top"
-            className="flex items-center gap-2.5 text-[#1D1D1F] hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2.5 text-[#1D1D1F] hover:opacity-90 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-lg p-1"
           >
             <div className="w-8 h-8 rounded-lg bg-[#0071E3] flex items-center justify-center text-white shadow-sm">
               <ShieldAlert className="w-4 h-4" />
@@ -43,7 +43,7 @@ export function Navbar() {
               <a
                 key={link.href}
                 href={link.href}
-                className="text-sm font-medium text-[#656565] hover:text-[#1D1D1F] transition-colors"
+                className="text-sm font-medium text-[#656565] hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
               >
                 {link.label}
               </a>
@@ -52,12 +52,12 @@ export function Navbar() {
 
           {/* Action CTAs */}
           <div className="hidden md:flex items-center gap-3">
-            <a href="#sample-report">
+            <a href="#sample-report" tabIndex={-1}>
               <Button variant="secondary" size="sm">
                 View Demo
               </Button>
             </a>
-            <a href="#overview">
+            <a href="#overview" tabIndex={-1}>
               <Button variant="primary" size="sm">
                 Explore Platform
               </Button>
@@ -69,7 +69,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-[#656565] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors"
+              className="p-2 rounded-lg text-[#656565] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3]"
               aria-expanded={mobileMenuOpen}
               aria-label="Toggle navigation menu"
             >
@@ -92,7 +92,7 @@ export function Navbar() {
                 key={link.href}
                 href={link.href}
                 onClick={() => setMobileMenuOpen(false)}
-                className="px-3 py-2 text-sm font-medium text-[#656565] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-lg transition-colors"
+                className="px-3 py-2 text-sm font-medium text-[#656565] hover:text-[#1D1D1F] hover:bg-[#F5F5F7] rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3]"
               >
                 {link.label}
               </a>
@@ -123,3 +123,4 @@ export function Navbar() {
     </header>
   );
 }
+

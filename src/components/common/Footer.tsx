@@ -13,7 +13,10 @@ export function Footer() {
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 pb-8 border-b border-[#E5E5EA]">
           {/* Brand Info */}
           <div className="space-y-1.5 max-w-md">
-            <Link href="#top" className="flex items-center gap-2 text-[#1D1D1F]">
+            <Link
+              href="#top"
+              className="flex items-center gap-2 text-[#1D1D1F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md p-1"
+            >
               <div className="w-6 h-6 rounded-md bg-[#0071E3] flex items-center justify-center text-white">
                 <ShieldAlert className="w-3.5 h-3.5" />
               </div>
@@ -29,19 +32,34 @@ export function Footer() {
 
           {/* Working Section Anchor Links */}
           <nav className="flex flex-wrap items-center gap-6 text-xs text-[#656565]">
-            <a href="#overview" className="hover:text-[#1D1D1F] transition-colors">
+            <a
+              href="#overview"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+            >
               Overview
             </a>
-            <a href="#how-it-works" className="hover:text-[#1D1D1F] transition-colors">
+            <a
+              href="#how-it-works"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+            >
               How It Works
             </a>
-            <a href="#features" className="hover:text-[#1D1D1F] transition-colors">
+            <a
+              href="#features"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+            >
               Core Features
             </a>
-            <a href="#sample-report" className="hover:text-[#1D1D1F] transition-colors">
+            <a
+              href="#sample-report"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+            >
               Demonstration
             </a>
-            <a href="#top" className="hover:text-[#1D1D1F] transition-colors">
+            <a
+              href="#top"
+              className="hover:text-[#1D1D1F] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3] rounded-md px-1.5 py-0.5"
+            >
               Back to Top
             </a>
           </nav>

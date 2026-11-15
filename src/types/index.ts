@@ -53,3 +53,4 @@ export interface FaultReport {
   createdAt: string;
   updatedAt: string;
 }
+
