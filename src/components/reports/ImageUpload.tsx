@@ -3,6 +3,7 @@
 import React, { useState, useRef, ChangeEvent, DragEvent } from "react";
 import Image from "next/image";
 import { UploadCloud, X, AlertCircle, Loader2 } from "lucide-react";
+import { auth } from "@/lib/firebase/client";
 
 interface ImageUploadProps {
   value?: string;
@@ -34,13 +35,24 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
       return;
     }
 
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setError("Authentication required. Please log in before uploading photos.");
+      return;
+    }
+
     try {
       setUploading(true);
+      const idToken = await currentUser.getIdToken();
+
       const formData = new FormData();
       formData.append("file", file);
 
       const res = await fetch("/api/upload", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+        },
         body: formData,
       });
 
@@ -199,3 +211,4 @@ export function ImageUpload({ value, onChange, disabled }: ImageUploadProps) {
     </div>
   );
 }
+
