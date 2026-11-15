@@ -8,6 +8,8 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
+  updateDoc,
+  deleteDoc,
   Timestamp,
   DocumentData,
 } from "firebase/firestore";
@@ -161,4 +163,72 @@ export async function getReportById(reportId: string): Promise<FaultReport | nul
   }
 
   return mapDocToFaultReport(snap.id, snap.data());
+}
+
+export interface AdminTriageInput {
+  status: ReportStatus;
+  priority: ReportPriority;
+  assignedTechnician?: string | null;
+  assignedAt?: string | null;
+  adminNotes?: string | null;
+}
+
+/**
+ * Subscribes to all reports across all campus labs in real-time.
+ * Strictly intended for verified administrators.
+ */
+export function subscribeAllReports(
+  onUpdate: (reports: FaultReport[]) => void,
+  onError?: (error: Error) => void
+): () => void {
+  const reportsCol = collection(db, "reports");
+
+  return onSnapshot(
+    reportsCol,
+    (snapshot) => {
+      const reports = snapshot.docs.map((docSnap) =>
+        mapDocToFaultReport(docSnap.id, docSnap.data())
+      );
+      // Sort client-side by date descending
+      reports.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      onUpdate(reports);
+    },
+    (err) => {
+      console.error("Firestore admin reports subscription error:", err);
+      if (onError) onError(err);
+    }
+  );
+}
+
+/**
+ * Updates a report's administrative triage fields in Firestore.
+ * Strictly permitted for verified administrators via Firestore Security Rules.
+ */
+export async function updateReportAdminTriage(
+  reportId: string,
+  update: AdminTriageInput
+): Promise<void> {
+  const docRef = doc(db, "reports", reportId);
+
+  const payload: Record<string, unknown> = {
+    status: update.status,
+    priority: update.priority,
+    assignedTechnician: update.assignedTechnician ? update.assignedTechnician.trim() : null,
+    assignedAt: update.assignedAt || (update.assignedTechnician ? new Date().toISOString() : null),
+    adminNotes: update.adminNotes ? update.adminNotes.trim() : null,
+    updatedAt: serverTimestamp(),
+  };
+
+  await updateDoc(docRef, payload);
+}
+
+/**
+ * Deletes a report document permanently from Firestore.
+ * Strictly permitted for verified administrators via Firestore Security Rules.
+ */
+export async function deleteReportAdmin(reportId: string): Promise<void> {
+  const docRef = doc(db, "reports", reportId);
+  await deleteDoc(docRef);
 }

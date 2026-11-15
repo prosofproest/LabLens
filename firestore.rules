@@ -68,6 +68,10 @@ service cloud.firestore {
       ];
     }
 
+    function isValidStatus(status) {
+      return status in ['Reported', 'In-Review', 'Assigned', 'In-Progress', 'Resolved', 'Cancelled'];
+    }
+
     function isValidPriority(priority) {
       return priority in ['Low', 'Medium', 'High', 'Critical'];
     }
@@ -130,6 +134,28 @@ service cloud.firestore {
         && data.adminNotes == null;
     }
 
+    function isValidAdminReportUpdate() {
+      return isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status', 'priority', 'assignedTechnician', 'assignedAt', 'adminNotes', 'updatedAt'
+        ])
+        && isValidStatus(request.resource.data.status)
+        && isValidPriority(request.resource.data.priority)
+        && (request.resource.data.assignedTechnician == null || (request.resource.data.assignedTechnician is string && request.resource.data.assignedTechnician.size() <= 100))
+        && (request.resource.data.assignedAt == null || request.resource.data.assignedAt is string || request.resource.data.assignedAt is timestamp)
+        && (request.resource.data.adminNotes == null || (request.resource.data.adminNotes is string && request.resource.data.adminNotes.size() <= 1000))
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.reportedBy == resource.data.reportedBy
+        && request.resource.data.equipmentName == resource.data.equipmentName
+        && request.resource.data.assetId == resource.data.assetId
+        && request.resource.data.labName == resource.data.labName
+        && request.resource.data.description == resource.data.description
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.imageUrl == resource.data.imageUrl
+        && request.resource.data.imagePublicId == resource.data.imagePublicId
+        && request.resource.data.aiAnalysis == resource.data.aiAnalysis;
+    }
+
     // --- USERS COLLECTION ---
     match /users/{userId} {
       // 1. Read: User can read their own profile; Admins can read any profile
@@ -177,8 +203,8 @@ service cloud.firestore {
         && request.resource.data.reportedBy.uid == request.auth.uid
         && isValidReportCreate(request.resource.data);
 
-      // 3. Update: Only admins can update reports
-      allow update: if isAdmin();
+      // 3. Update: Only admins can update reports with validated administrative fields
+      allow update: if isValidAdminReportUpdate();
 
       // 4. Delete: Only admins can delete reports
       allow delete: if isAdmin();

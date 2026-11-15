@@ -517,6 +517,52 @@ async function runTests() {
     deleteDoc("reports", "valid_report_user_a", "admin_user", "admin@college.edu")
   );
 
+  // R_N9. Admin cannot tamper with immutable reporter or equipment fields
+  await assertFails(
+    "Report Negative 9: Admin cannot overwrite immutable reporter or equipment fields",
+    updateDoc(
+      "reports",
+      "report_user_b",
+      {
+        equipmentName: "Tampered Rig Name",
+      },
+      ["equipmentName"],
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
+  // R_N10. Admin cannot set an invalid status
+  await assertFails(
+    "Report Negative 10: Admin cannot set an invalid status",
+    updateDoc(
+      "reports",
+      "report_user_b",
+      {
+        status: "FakeIllegalStatus",
+      },
+      ["status"],
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
+  // R_P6. Verified admin can update to Cancelled status
+  await assertSucceeds(
+    "Report Positive 6: Verified admin can update report to Cancelled status",
+    updateDoc(
+      "reports",
+      "report_user_b",
+      {
+        status: "Cancelled",
+        adminNotes: "Equipment decommissioned.",
+      },
+      ["status", "adminNotes"],
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
   const passed = results.filter(r => r.pass).length;
   console.log(`\n==============================================`);
   console.log(`EMULATOR TEST SUMMARY: ${passed}/${results.length} PASSED`);
