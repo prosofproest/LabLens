@@ -40,6 +40,22 @@ service cloud.firestore {
     //   - assignedAt: null on creation (timestamp when technician assigned)
     //   - adminNotes: null on creation (administrative remarks)
     //
+    // Collection: audit_logs
+    // Document ID: {logId} (auto-generated)
+    // Fields:
+    //   - action: string (required) - Permitted administrative action enum
+    //   - reportId: string (required, 1-100 chars) - Target report ID
+    //   - equipmentName: string (required, 1-100 chars) - Target equipment
+    //   - assetId: string (required, 1-50 chars) - Hardware asset tag
+    //   - performedBy: map (required) - Administrator identity
+    //     - uid: string (required, matches request.auth.uid)
+    //     - name: string (required, 1-100 chars)
+    //     - email: string (required, 1-100 chars)
+    //     - role: string (required, 'admin')
+    //   - changes: list (required, <= 50 elements) - Detailed field modifications
+    //   - timestamp: timestamp (required) - Execution timestamp
+    //
+    //
     // ===============================================================
 
     // Helper functions
@@ -163,6 +179,46 @@ service cloud.firestore {
         && request.resource.data.aiAnalysis == resource.data.aiAnalysis;
     }
 
+    function isValidAuditAction(action) {
+      return action in [
+        'STATUS_CHANGE',
+        'PRIORITY_OVERRIDE',
+        'CATEGORY_OVERRIDE',
+        'TECHNICIAN_ASSIGNMENT',
+        'TECHNICIAN_REMOVAL',
+        'ADMIN_NOTE_CHANGE',
+        'REPORT_DELETED'
+      ];
+    }
+
+    function isValidAuditActor(actor) {
+      return actor is map
+        && actor.keys().hasAll(['uid', 'name', 'email', 'role'])
+        && actor.keys().hasOnly(['uid', 'name', 'email', 'role'])
+        && actor.uid is string && actor.uid == request.auth.uid
+        && actor.name is string && actor.name.size() > 0 && actor.name.size() <= 100
+        && actor.email is string && actor.email.size() > 0 && actor.email.size() <= 100
+        && actor.role == 'admin';
+    }
+
+    function isValidAuditLog(data) {
+      return data.keys().hasAll([
+          'action', 'reportId', 'equipmentName', 'assetId',
+          'performedBy', 'changes', 'timestamp'
+        ])
+        && data.keys().hasOnly([
+          'action', 'reportId', 'equipmentName', 'assetId',
+          'performedBy', 'changes', 'timestamp'
+        ])
+        && isValidAuditAction(data.action)
+        && data.reportId is string && data.reportId.size() > 0 && data.reportId.size() <= 100
+        && data.equipmentName is string && data.equipmentName.size() > 0 && data.equipmentName.size() <= 100
+        && data.assetId is string && data.assetId.size() > 0 && data.assetId.size() <= 50
+        && isValidAuditActor(data.performedBy)
+        && data.changes is list
+        && data.timestamp is timestamp;
+    }
+
     // --- USERS COLLECTION ---
     match /users/{userId} {
       // 1. Read: User can read their own profile; Admins can read any profile
@@ -215,6 +271,18 @@ service cloud.firestore {
 
       // 4. Delete: Only admins can delete reports
       allow delete: if isAdmin();
+    }
+
+    // --- AUDIT LOGS COLLECTION ---
+    match /audit_logs/{logId} {
+      // 1. Read: Verified admins only (regular users cannot read)
+      allow read: if isAdmin();
+
+      // 2. Create: Verified admins only, strictly validated against audit schema
+      allow create: if isAdmin() && isValidAuditLog(request.resource.data);
+
+      // 3. Update & Delete: Strictly prohibited (immutable and append-only)
+      allow update, delete: if false;
     }
   }
 }

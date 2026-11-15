@@ -35,6 +35,23 @@ function toFirestoreFields(obj) {
       fields[key] = { booleanValue: value };
     } else if (value instanceof Date) {
       fields[key] = { timestampValue: value.toISOString() };
+    } else if (Array.isArray(value)) {
+      fields[key] = {
+        arrayValue: {
+          values: value.map((item) => {
+            if (typeof item === "object" && item !== null) {
+              return { mapValue: { fields: toFirestoreFields(item) } };
+            } else if (typeof item === "string") {
+              return { stringValue: item };
+            } else if (typeof item === "number") {
+              return { integerValue: String(item) };
+            } else if (typeof item === "boolean") {
+              return { booleanValue: item };
+            }
+            return { stringValue: String(item) };
+          }),
+        },
+      };
     } else if (typeof value === "object" && !Array.isArray(value)) {
       fields[key] = { mapValue: { fields: toFirestoreFields(value) } };
     }
@@ -616,6 +633,125 @@ async function runTests() {
       "admin_user",
       "admin@college.edu"
     )
+  );
+
+  // --- Audit Logs Collection Security Tests ---
+  console.log("\n--- Audit Logs Collection Security Tests ---");
+
+  // AL_N1: Unauthenticated user cannot read audit logs
+  await assertFails(
+    "Audit Log Negative 1: Unauthenticated user cannot read audit logs",
+    getDoc("audit_logs", "log_sample", null, null)
+  );
+
+  // AL_N2: Normal student cannot read audit logs
+  await assertFails(
+    "Audit Log Negative 2: Student user cannot read audit logs",
+    getDoc("audit_logs", "log_sample", "user_a", "student@college.edu")
+  );
+
+  // AL_N3: Normal student cannot create audit log
+  await assertFails(
+    "Audit Log Negative 3: Student user cannot create audit log",
+    createDoc(
+      "audit_logs",
+      "log_student_attempt",
+      {
+        action: "STATUS_CHANGE",
+        reportId: "report_1",
+        equipmentName: "Equipment",
+        assetId: "ASSET1",
+        performedBy: {
+          uid: "user_a",
+          name: "Student",
+          email: "student@college.edu",
+          role: "user",
+        },
+        changes: [],
+        timestamp: new Date(),
+      },
+      "user_a",
+      "student@college.edu"
+    )
+  );
+
+  // AL_P1: Verified admin can create valid audit log
+  await assertSucceeds(
+    "Audit Log Positive 1: Verified admin can create valid audit log",
+    createDoc(
+      "audit_logs",
+      "log_valid_admin",
+      {
+        action: "STATUS_CHANGE",
+        reportId: "report_user_b",
+        equipmentName: "Microscope Olympus CX23",
+        assetId: "BIO-LAB1-MIC01",
+        performedBy: {
+          uid: "admin_user",
+          name: "Administrator",
+          email: "admin@college.edu",
+          role: "admin",
+        },
+        changes: [
+          { field: "status", previousValue: "Reported", newValue: "In-Progress" },
+        ],
+        timestamp: new Date(),
+      },
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
+  // AL_P2: Verified admin can read audit logs
+  await assertSucceeds(
+    "Audit Log Positive 2: Verified admin can read audit logs",
+    getDoc("audit_logs", "log_valid_admin", "admin_user", "admin@college.edu")
+  );
+
+  // AL_N4: Admin cannot spoof another admin's UID in performedBy.uid
+  await assertFails(
+    "Audit Log Negative 4: Admin cannot claim another admin's UID",
+    createDoc(
+      "audit_logs",
+      "log_spoof_attempt",
+      {
+        action: "STATUS_CHANGE",
+        reportId: "report_user_b",
+        equipmentName: "Microscope Olympus CX23",
+        assetId: "BIO-LAB1-MIC01",
+        performedBy: {
+          uid: "other_admin_uid",
+          name: "Other Admin",
+          email: "other@college.edu",
+          role: "admin",
+        },
+        changes: [],
+        timestamp: new Date(),
+      },
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
+  // AL_N5: Admin cannot modify an existing audit log (IMMUTABLE)
+  await assertFails(
+    "Audit Log Negative 5: Admin cannot update an existing audit log (Immutable)",
+    updateDoc(
+      "audit_logs",
+      "log_valid_admin",
+      {
+        action: "REPORT_DELETED",
+      },
+      ["action"],
+      "admin_user",
+      "admin@college.edu"
+    )
+  );
+
+  // AL_N6: Admin cannot delete an audit log (IMMUTABLE)
+  await assertFails(
+    "Audit Log Negative 6: Admin cannot delete an existing audit log (Immutable)",
+    deleteDoc("audit_logs", "log_valid_admin", "admin_user", "admin@college.edu")
   );
 
   const passed = results.filter(r => r.pass).length;

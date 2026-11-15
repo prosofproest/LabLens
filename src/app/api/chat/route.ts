@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyFirebaseIdToken } from "@/lib/firebase/serverAuth";
 import { getGroqClient, getValidatedGroqModel, isGroqConfigured } from "@/lib/groq/client";
-import { checkRateLimit } from "@/lib/groq/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/groq/rateLimit";
 import { readJsonWithByteLimit, PayloadTooLargeError } from "@/lib/groq/streamLimit";
 
 interface ChatMessageInput {
@@ -218,9 +218,15 @@ export async function POST(req: NextRequest) {
       rateLimitKey = `ip_${clientIp}`;
     }
 
-    // 3. Enforce Rate Limiting (15 chat messages per minute)
-    const rateCheck = checkRateLimit(rateLimitKey, 15, 60000);
+    // 3. Enforce Distributed Rate Limiting (15 chat messages per minute)
+    const rateCheck = await checkDistributedRateLimit(rateLimitKey, 15, 60000);
     if (!rateCheck.allowed) {
+      if (rateCheck.isServiceUnavailable) {
+        return NextResponse.json(
+          { error: rateCheck.error || "Rate limiting service temporarily unavailable." },
+          { status: 503 }
+        );
+      }
       return NextResponse.json(
         {
           error: `Chat rate limit reached. Please wait ${rateCheck.retryAfterSec || 30} seconds before sending another message.`,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyFirebaseIdToken, VerifiedFirebaseToken } from "@/lib/firebase/serverAuth";
 import { isGroqConfigured } from "@/lib/groq/client";
 import { analyzeFaultReport, createUnavailableAiAnalysis, TriageInput } from "@/lib/groq/triage";
-import { checkRateLimit } from "@/lib/groq/rateLimit";
+import { checkDistributedRateLimit } from "@/lib/groq/rateLimit";
 import { readJsonWithByteLimit, PayloadTooLargeError } from "@/lib/groq/streamLimit";
 
 export async function POST(req: NextRequest) {
@@ -46,9 +46,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Unauthorized: ${message}` }, { status: 401 });
     }
 
-    // 3. Enforce Rate Limiting (15 triage requests per minute per authenticated user)
-    const rateCheck = checkRateLimit(`triage_${verifiedUser.uid}`, 15, 60000);
+    // 3. Enforce Distributed Rate Limiting (15 triage requests per minute per authenticated user)
+    const rateCheck = await checkDistributedRateLimit(`triage_${verifiedUser.uid}`, 15, 60000);
     if (!rateCheck.allowed) {
+      if (rateCheck.isServiceUnavailable) {
+        return NextResponse.json(
+          { error: rateCheck.error || "Rate limiting service temporarily unavailable." },
+          { status: 503 }
+        );
+      }
       return NextResponse.json(
         {
           error: `Rate limit exceeded. Please wait ${rateCheck.retryAfterSec || 30} seconds before requesting AI triage.`,

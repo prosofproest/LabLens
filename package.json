@@ -11,12 +11,15 @@
     "test:security": "npx tsx scripts/test-phase1-security.mjs",
     "test:demo": "npx tsx scripts/test-demo-mode.mjs",
     "test:upload": "npx tsx scripts/test-upload-magic-bytes.mjs",
+    "test:chatbot": "firebase emulators:exec --only firestore,auth 'node scripts/test-chatbot-omnipresence.mjs'",
     "test:e2e": "firebase emulators:exec --only firestore 'node scripts/test-e2e-workflow.mjs'",
     "test:emulator": "firebase emulators:exec --only firestore 'node scripts/test-rules-emulator.mjs && node scripts/test-e2e-workflow.mjs'",
     "test:browser": "firebase emulators:exec --only firestore,auth 'node scripts/run-all-browser-tests.mjs'"
   },
   "dependencies": {
     "@next/swc-darwin-arm64": "^16.4.6",
+    "@upstash/ratelimit": "^2.2.1",
+    "@upstash/redis": "^1.41.0",
     "cloudinary": "^2.11.0",
     "clsx": "^2.1.1",
     "firebase": "^11.4.0",

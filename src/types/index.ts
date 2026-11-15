@@ -116,3 +116,35 @@ export interface AuthContextType {
   retryCreateProfile: (name: string, dept: Department) => Promise<void>;
   setActiveRoleView: (role: UserRole) => void;
 }
+
+export type AuditActionType =
+  | "STATUS_CHANGE"
+  | "PRIORITY_OVERRIDE"
+  | "CATEGORY_OVERRIDE"
+  | "TECHNICIAN_ASSIGNMENT"
+  | "TECHNICIAN_REMOVAL"
+  | "ADMIN_NOTE_CHANGE"
+  | "REPORT_DELETED";
+
+export interface AuditFieldChange {
+  field: string;
+  previousValue: unknown;
+  newValue: unknown;
+}
+
+export interface AuditLogRecord {
+  id: string;
+  action: AuditActionType;
+  reportId: string;
+  equipmentName: string;
+  assetId: string;
+  performedBy: {
+    uid: string;
+    name: string;
+    email: string;
+    role: "admin";
+  };
+  changes: AuditFieldChange[];
+  timestamp: string;
+}
+
