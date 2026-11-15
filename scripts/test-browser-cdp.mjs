@@ -210,7 +210,7 @@ async function runBrowserTests() {
       break;
     }
   }
-  assert("Chatbot: AI response rendered with safety protocol instructions", chatAnswerFound);
+  assert("[MOCKED GROQ / FALLBACK] Chatbot: AI response rendered with safety protocol instructions", chatAnswerFound);
 
   // Dismiss via Escape
   await cdp.send("Input.dispatchKeyEvent", {
@@ -409,7 +409,7 @@ async function runBrowserTests() {
   // =========================================================================
   // Section 7: User View / Admin Preview Separation & Triage Modal
   // =========================================================================
-  console.log("\n--- Section 7: Role Preview Separation & Admin Triage Operations ---");
+  console.log("\n--- Section 7: Role Preview Separation (Mock Data & Local Isolation) ---");
   // Navigate to /admin while activeRoleView is "user"
   await cdp.send("Page.navigate", { url: `${BASE_URL}/admin` });
   await sleep(1000);
@@ -467,9 +467,9 @@ async function runBrowserTests() {
   });
 
   const mc = metricsCheck.result.value;
-  assert("Admin Hub: 5 Metrics Overview cards rendered (Total Tickets, Pending Review, In Progress, Resolved, Critical Severity)", mc.hasTotal && mc.hasPending && mc.hasProgress && mc.hasResolved && mc.hasCritical);
+  assert("Admin Hub Preview: 5 Metrics Overview cards rendered from mock dataset", mc.hasTotal && mc.hasPending && mc.hasProgress && mc.hasResolved && mc.hasCritical);
 
-  // Open Admin Triage Modal on first ticket
+  // Open Admin Triage Modal on first mock ticket
   const openTriage = await cdp.send("Runtime.evaluate", {
     expression: `(() => {
       const triageButtons = Array.from(document.querySelectorAll("button")).filter(b => b.innerText.includes("Triage Ticket"));
@@ -481,7 +481,7 @@ async function runBrowserTests() {
     })()`,
     returnByValue: true,
   });
-  assert("Admin Hub: Clicked 'Triage Ticket' to launch Admin Triage Modal", openTriage.result.value === true);
+  assert("Admin Hub Preview: Clicked 'Triage Ticket' to launch Admin Triage Modal", openTriage.result.value === true);
 
   await sleep(600);
 
@@ -512,8 +512,214 @@ async function runBrowserTests() {
   assert("Triage Modal: Contains operational category selector with 6 approved categories", controls.valid && controls.categoryCount === 6);
   assert("Triage Modal: Contains priority selector with 4 urgency tiers", controls.valid && controls.priorityCount === 4);
 
-  // Execute Category and Priority Override in Triage Modal
-  const applyTriageOverride = await cdp.send("Runtime.evaluate", {
+  // Close preview modal via Cancel button
+  await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const cancelBtn = Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Cancel"));
+      if (cancelBtn) cancelBtn.click();
+    })()`,
+  });
+  await sleep(600);
+
+  // Normal student signs out
+  const studentLogoutClick = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const logoutBtn = document.querySelector("button[aria-label='Sign out']");
+      if (logoutBtn) {
+        logoutBtn.click();
+        return true;
+      }
+      return false;
+    })()`,
+    returnByValue: true,
+  });
+  assert("Role Preview: Normal student signed out cleanly", studentLogoutClick.result.value === true);
+  await sleep(1200);
+
+  // =========================================================================
+  // Section 8: Independent Login Verification & Invalid Credentials Handling
+  // =========================================================================
+  console.log("\n--- Section 8: Independent Login Verification & Invalid Credentials Handling ---");
+  await cdp.send("Page.navigate", { url: `${BASE_URL}/login` });
+  await sleep(1000);
+
+  // Test 8a: Submit invalid credentials
+  const fillInvalidLogin = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      function setReactValue(el, value) {
+        if (!el) return;
+        const proto = window.HTMLInputElement.prototype;
+        const set = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        set.call(el, value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      const emailInput = document.getElementById("input-college-email");
+      const passInput = document.getElementById("input-password");
+      const submitBtn = document.querySelector("button[type='submit']");
+
+      if (!emailInput || !passInput || !submitBtn) return false;
+
+      setReactValue(emailInput, "unregistered.user@college.edu");
+      setReactValue(passInput, "InvalidPass123!");
+      submitBtn.click();
+      return true;
+    })()`,
+    returnByValue: true,
+  });
+  assert("Login Form: Submitted invalid login credentials", fillInvalidLogin.result.value === true);
+
+  await sleep(1200);
+
+  // Verify clear invalid credentials error is displayed
+  const errorCheck = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const text = document.body.innerText;
+      return text.includes("Invalid email or password") || text.includes("verify your credentials");
+    })()`,
+    returnByValue: true,
+  });
+  assert("Login Form: Displays error message for invalid credentials without crashing", errorCheck.result.value === true);
+
+  // Provision dedicated administrator test account in Auth & Firestore Emulators
+  const adminTimestamp = Date.now();
+  const dedicatedAdminEmail = `admin.lead.${adminTimestamp}@college.edu`;
+  const dedicatedAdminPass = "AdminMaster2026!";
+
+  // 1. Create user in Auth Emulator
+  const authSignUpRes = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake-api-key", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: dedicatedAdminEmail,
+      password: dedicatedAdminPass,
+      returnSecureToken: true,
+    }),
+  });
+  const authSignUpData = await authSignUpRes.json();
+  const adminUid = authSignUpData.localId;
+
+  // 2. Provision admin user document in Firestore Emulator with role: "admin"
+  const firestoreUserUrl = `http://127.0.0.1:8080/v1/projects/demo-no-project/databases/(default)/documents/users/${adminUid}`;
+  const nowIso = new Date().toISOString();
+  await fetch(firestoreUserUrl, {
+    method: "PATCH",
+    headers: {
+      Authorization: "Bearer owner",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      fields: {
+        uid: { stringValue: adminUid },
+        name: { stringValue: "Dr. Marcus Vance (Admin Lead)" },
+        email: { stringValue: dedicatedAdminEmail },
+        role: { stringValue: "admin" },
+        department: { stringValue: "Electrical & Electronics" },
+        createdAt: { timestampValue: nowIso },
+        updatedAt: { timestampValue: nowIso },
+      },
+    }),
+  });
+
+  // Test 8b: Independent Login with existing registered admin account
+  const fillValidAdminLogin = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      function setReactValue(el, value) {
+        if (!el) return;
+        const proto = window.HTMLInputElement.prototype;
+        const set = Object.getOwnPropertyDescriptor(proto, 'value').set;
+        set.call(el, value);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      const emailInput = document.getElementById("input-college-email");
+      const passInput = document.getElementById("input-password");
+      const submitBtn = document.querySelector("button[type='submit']");
+
+      if (!emailInput || !passInput || !submitBtn) return false;
+
+      setReactValue(emailInput, "${dedicatedAdminEmail}");
+      setReactValue(passInput, "${dedicatedAdminPass}");
+      submitBtn.click();
+      return true;
+    })()`,
+    returnByValue: true,
+  });
+  assert("Login Form: Submitted valid credentials for dedicated administrator account", fillValidAdminLogin.result.value === true);
+
+  console.log("Waiting for administrator login authentication and automatic routing...");
+  let onAdminPage = false;
+  for (let i = 0; i < 25; i++) {
+    await sleep(600);
+    const pathCheck = await cdp.send("Runtime.evaluate", {
+      expression: `window.location.pathname`,
+      returnByValue: true,
+    });
+    if (pathCheck.result.value === "/admin") {
+      onAdminPage = true;
+      break;
+    }
+  }
+  assert("Independent Login: Dedicated admin successfully authenticated and routed directly to /admin", onAdminPage);
+
+  // =========================================================================
+  // Section 9: Real Admin Workflow (Live Firestore Data & Operational Overrides)
+  // =========================================================================
+  console.log("\n--- Section 9: Real Admin Workflow (Live Firestore Data & Operational Overrides) ---");
+  await sleep(1500);
+
+  // Verify Authentic Admin Header and absence of Simulated Role View banner
+  const liveAdminHeaderCheck = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const text = document.body.innerText;
+      const hasLiveAdminBadge = text.includes("Live Admin Mode");
+      const hasSimulatedBanner = text.includes("Admin Role Preview Active");
+      return { hasLiveAdminBadge, hasSimulatedBanner };
+    })()`,
+    returnByValue: true,
+  });
+  const ahc = liveAdminHeaderCheck.result.value;
+  assert("Live Admin View: Verified admin header displays authentic Live Admin Mode badge", ahc.hasLiveAdminBadge);
+  assert("Live Admin View: Simulated Role View banner is strictly absent (Real Admin View active)", ahc.hasSimulatedBanner === false);
+
+  // Verify student report submitted earlier appears in live administrative ticket feed
+  let liveTicketFound = false;
+  for (let i = 0; i < 20; i++) {
+    const ticketCheck = await cdp.send("Runtime.evaluate", {
+      expression: `(() => {
+        const text = document.body.innerText;
+        return text.includes("Tektronix Oscilloscope TBS1052B") || text.includes("LAB-ECE-042");
+      })()`,
+      returnByValue: true,
+    });
+    if (ticketCheck.result.value) {
+      liveTicketFound = true;
+      break;
+    }
+    await sleep(500);
+  }
+  assert("Live Admin Feed: Real student fault report from Firestore appears in live admin dashboard", liveTicketFound);
+
+  // Open Admin Triage Modal on the live student ticket
+  const openLiveTriage = await cdp.send("Runtime.evaluate", {
+    expression: `(() => {
+      const triageButtons = Array.from(document.querySelectorAll("button")).filter(b => b.innerText.includes("Triage Ticket"));
+      if (triageButtons.length > 0) {
+        triageButtons[0].click();
+        return true;
+      }
+      return false;
+    })()`,
+    returnByValue: true,
+  });
+  assert("Live Admin View: Clicked 'Triage Ticket' to launch triage modal on live Firestore report", openLiveTriage.result.value === true);
+
+  await sleep(800);
+
+  // Apply operational overrides: Category -> Power/Electrical, Priority -> Critical, Status -> In-Progress, Technician -> Eng. Marcus Vance
+  const applyLiveTriage = await cdp.send("Runtime.evaluate", {
     expression: `(() => {
       function setReactValue(el, value) {
         if (!el) return;
@@ -530,6 +736,7 @@ async function runBrowserTests() {
       const prioritySelect = document.getElementById("triage-priority");
       const categorySelect = document.getElementById("triage-category");
       const techInput = document.getElementById("technician-name") || document.getElementById("triage-tech");
+      const notesInput = document.getElementById("admin-notes");
       const saveBtn = Array.from(document.querySelectorAll("button")).find(b => b.innerText.includes("Save Triage"));
 
       if (!statusSelect || !prioritySelect || !categorySelect || !techInput || !saveBtn) return false;
@@ -537,32 +744,61 @@ async function runBrowserTests() {
       setReactValue(statusSelect, "In-Progress");
       setReactValue(prioritySelect, "Critical");
       setReactValue(categorySelect, "Power/Electrical");
-      setReactValue(techInput, "Ramesh Kumar (Hardware Specialist)");
+      setReactValue(techInput, "Eng. Marcus Vance (Chief Systems Engineer)");
+      if (notesInput) {
+        setReactValue(notesInput, "Power surge in lab bench 4 inspected; expedited capacitor replacement.");
+      }
 
       setTimeout(() => saveBtn.click(), 100);
       return true;
     })()`,
     returnByValue: true,
   });
-  assert("Triage Modal: Applied operational category, priority, and technician override", applyTriageOverride.result.value === true);
+  assert("Live Admin View: Applied operational category, priority, and technician override on live ticket", applyLiveTriage.result.value === true);
 
-  await sleep(1000);
+  await sleep(1500);
 
-  // Verify the updated row reflects the overrides
-  const verifiedRowUpdate = await cdp.send("Runtime.evaluate", {
+  // Verify live UI table update
+  const verifiedLiveUiUpdate = await cdp.send("Runtime.evaluate", {
     expression: `(() => {
       const text = document.body.innerText;
-      return text.includes("In Progress") && text.includes("Critical") && text.includes("Ramesh Kumar");
+      return text.includes("In Progress") && text.includes("Critical") && text.includes("Marcus Vance");
     })()`,
     returnByValue: true,
   });
-  assert("Admin Hub: Ticket card updated with In-Progress status, Critical priority, and assigned technician", verifiedRowUpdate.result.value === true);
+  assert("Live Admin View: Live report card dynamically updated with In-Progress status, Critical priority, and technician", verifiedLiveUiUpdate.result.value === true);
+
+  // Verify write reached Firestore Emulator document via REST API
+  const firestoreReportsList = await fetch("http://127.0.0.1:8080/v1/projects/demo-no-project/databases/(default)/documents/reports", {
+    headers: { Authorization: "Bearer owner" }
+  });
+  const firestoreData = await firestoreReportsList.json();
+  const modifiedDoc = firestoreData.documents?.find(d => {
+    const f = d.fields;
+    return f.equipmentName?.stringValue?.includes("Tektronix") || f.assetId?.stringValue === "LAB-ECE-042";
+  });
+
+  const fields = modifiedDoc?.fields || {};
+  const statusSaved = fields.status?.stringValue === "In-Progress";
+  const prioritySaved = fields.priority?.stringValue === "Critical";
+  const categorySaved = fields.category?.stringValue === "Power/Electrical";
+  const techSaved = fields.assignedTechnician?.stringValue?.includes("Marcus Vance");
+  const assignedAtSaved = Boolean(fields.assignedAt?.stringValue);
+  // Original Groq AI suggestedCategory must remain intact (never overwritten by operational override)
+  const originalAiCategory = fields.aiAnalysis?.mapValue?.fields?.suggestedCategory?.stringValue;
+  const originalAiPreserved = Boolean(originalAiCategory) && originalAiCategory !== "Power/Electrical";
+
+  assert("Live Firestore Verification: Status updated to 'In-Progress' in Firestore document", statusSaved);
+  assert("Live Firestore Verification: Priority updated to 'Critical' in Firestore document", prioritySaved);
+  assert("Live Firestore Verification: Operational category overridden to 'Power/Electrical' in Firestore document", categorySaved);
+  assert("Live Firestore Verification: Assigned technician stored with fresh assignedAt timestamp", techSaved && assignedAtSaved);
+  assert("Live Firestore Verification: Original Groq AI suggestedCategory remains 'Hardware' (strictly untampered)", originalAiPreserved);
 
   // =========================================================================
-  // Section 8: Logout & Post-Logout Protected Route Enforcement
+  // Section 10: Logout & Post-Logout Protected Route Enforcement
   // =========================================================================
-  console.log("\n--- Section 8: Logout & Post-Logout Protected Route Enforcement ---");
-  const logoutClick = await cdp.send("Runtime.evaluate", {
+  console.log("\n--- Section 10: Logout & Post-Logout Protected Route Enforcement ---");
+  const adminLogoutClick = await cdp.send("Runtime.evaluate", {
     expression: `(() => {
       const logoutBtn = document.querySelector("button[aria-label='Sign out']");
       if (logoutBtn) {
@@ -573,7 +809,7 @@ async function runBrowserTests() {
     })()`,
     returnByValue: true,
   });
-  assert("Logout: Sign out action triggered successfully", logoutClick.result.value === true);
+  assert("Logout: Administrator signed out successfully", adminLogoutClick.result.value === true);
 
   await sleep(1000);
 

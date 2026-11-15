@@ -26,7 +26,7 @@ async function run() {
   delete process.env.GROQ_MODEL;
   const defaultModel = getValidatedGroqModel();
   assert(
-    "Test 1: Defaults to openai/gpt-oss-20b when GROQ_MODEL is unset",
+    "[CONFIG / GROQ EXCLUSIVITY] Test 1: Defaults to openai/gpt-oss-20b when GROQ_MODEL is unset",
     defaultModel === "openai/gpt-oss-20b" && defaultModel === DEFAULT_GROQ_MODEL
   );
 
@@ -34,7 +34,7 @@ async function run() {
   process.env.GROQ_MODEL = "qwen/qwen3.8-27b";
   const customModel = getValidatedGroqModel();
   assert(
-    "Test 2: Accepts supported model qwen/qwen3.8-27b from allowlist",
+    "[CONFIG / GROQ EXCLUSIVITY] Test 2: Accepts supported model qwen/qwen3.8-27b from allowlist",
     customModel === "qwen/qwen3.8-27b"
   );
 
@@ -47,7 +47,7 @@ async function run() {
     rejectedDeprecated = err.message.includes("Unsupported GROQ_MODEL");
   }
   assert(
-    "Test 3a: Strictly rejects deprecated model llama-3.1-8b-instant without switching",
+    "[CONFIG / GROQ EXCLUSIVITY] Test 3a: Strictly rejects deprecated model llama-3.1-8b-instant without switching",
     rejectedDeprecated
   );
 
@@ -59,7 +59,7 @@ async function run() {
     rejectedThirdParty = err.message.includes("Unsupported GROQ_MODEL");
   }
   assert(
-    "Test 3b: Strictly rejects non-Groq model gpt-4o",
+    "[CONFIG / GROQ EXCLUSIVITY] Test 3b: Strictly rejects non-Groq model gpt-4o",
     rejectedThirdParty
   );
 
@@ -68,15 +68,15 @@ async function run() {
   // Test 4: Fallback Triage Generator
   const fallback = createUnavailableAiAnalysis("Service offline test");
   assert(
-    "Test 4a: Fallback is marked with status 'unavailable' and isAiGenerated false",
+    "[MOCKED GROQ / FALLBACK] Test 4a: Fallback is marked with status 'unavailable' and isAiGenerated false",
     fallback.status === "unavailable" && fallback.isAiGenerated === false
   );
   assert(
-    "Test 4b: Fallback contains no confidenceScore or confidenceLabel property",
+    "[MOCKED GROQ / FALLBACK] Test 4b: Fallback contains no confidenceScore or confidenceLabel property",
     !("confidenceScore" in fallback) && !("confidenceLabel" in fallback)
   );
   assert(
-    "Test 4c: Fallback prioritizes safety with recommended non-invasive action",
+    "[MOCKED GROQ / FALLBACK] Test 4c: Fallback prioritizes safety with recommended non-invasive action",
     typeof fallback.recommendedAction === "string" && fallback.recommendedAction.includes("clearance")
   );
 
@@ -103,7 +103,7 @@ async function run() {
     sizeRejected = err instanceof PayloadTooLargeError;
   }
   assert(
-    "Test 5: Stream byte limiter rejects payloads > 32 KB during stream reading",
+    "[PAYLOAD LIMIT / SECURITY] Test 5: Stream byte limiter rejects payloads > 32 KB during stream reading",
     sizeRejected
   );
 
@@ -125,7 +125,7 @@ async function run() {
 
   const parsed = await readJsonWithByteLimit(fakeNormalReq, 32 * 1024);
   assert(
-    "Test 6: Stream byte limiter accepts and parses valid payloads <= 32 KB",
+    "[PAYLOAD LIMIT / SECURITY] Test 6: Stream byte limiter accepts and parses valid payloads <= 32 KB",
     parsed.equipmentName === "Oscilloscope"
   );
 
@@ -136,9 +136,15 @@ async function run() {
   }
   const blocked = checkRateLimit(rateKey, 15, 60000);
   assert(
-    "Test 7: In-memory sliding rate limiter blocks 16th request in sliding window",
+    "[RATE LIMIT / SECURITY] Test 7: In-memory sliding rate limiter blocks 16th request in sliding window",
     blocked.allowed === false && blocked.remaining === 0
   );
+
+  if (process.env.GROQ_API_KEY && process.env.GROQ_API_KEY.trim() !== "") {
+    console.log("[STATUS: LIVE GROQ] GROQ_API_KEY configured: Live Groq API calls are active.");
+  } else {
+    console.log("[STATUS: MOCKED GROQ / FALLBACK] GROQ_API_KEY not configured: Deterministic fallback and safety mock responses are active.");
+  }
 
   const passed = tests.filter((t) => t.pass).length;
   console.log(`\n==============================================`);
